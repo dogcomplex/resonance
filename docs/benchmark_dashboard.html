@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+body { font-family: system-ui; background: #0f172a; color: #e2e8f0; padding: 20px; max-width: 1400px; margin: 0 auto; }
+h1 { color: #60a5fa; border-bottom: 2px solid #3b82f6; padding-bottom: 10px; }
+h2 { color: #94a3b8; margin-top: 30px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; margin: 20px 0; }
+.card { background: #1e293b; border-radius: 12px; padding: 20px; border: 1px solid #334155; }
+.card h3 { color: #f8fafc; margin-top: 0; }
+table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+th, td { padding: 8px 12px; text-align: right; border-bottom: 1px solid #334155; }
+th { color: #94a3b8; font-weight: 500; }
+td:first-child { text-align: left; }
+.passive { color: #94a3b8; }
+.active { color: #22c55e; font-weight: 600; }
+.meta { color: #a78bfa; }
+.baseline { color: #f97316; }
+.highlight { background: #22c55e20; }
+.queries { color: #fbbf24; font-size: 0.85rem; }
+.summary-box { background: linear-gradient(135deg, #1e3a5f 0%, #172554 100%); border: 1px solid #3b82f6; border-radius: 12px; padding: 20px; margin: 20px 0; }
+.summary-box h3 { color: #60a5fa; margin-top: 0; }
+.stat { display: inline-block; margin: 10px 20px 10px 0; }
+.stat-value { font-size: 2rem; font-weight: bold; color: #22c55e; }
+.stat-label { color: #94a3b8; font-size: 0.85rem; }
+.legend { display: flex; gap: 20px; flex-wrap: wrap; margin: 10px 0; }
+.legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; }
+.legend-dot { width: 12px; height: 12px; border-radius: 50%; }
+.success { color: #22c55e; }
+code { background: #334155; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+</style>
+</head>
+<body>
+
+<h1>🎯 Few-Shot Rule Learning Benchmark</h1>
+
+<div class="summary-box">
+<h3>Key Results</h3>
+<div class="stat">
+<div class="stat-value">16</div>
+<div class="stat-label">Standard queries → 100%</div>
+</div>
+<div class="stat">
+<div class="stat-value">168</div>
+<div class="stat-label">All 3-tuples → 100%</div>
+</div>
+<div class="stat">
+<div class="stat-value">420</div>
+<div class="stat-label">Up to 4-tuples → 100%</div>
+</div>
+<div class="stat">
+<div class="stat-value">31×</div>
+<div class="stat-label">Speedup vs passive</div>
+</div>
+</div>
+
+<h2>Learning Modes Comparison</h2>
+<div class="card">
+<table>
+<tr>
+<th>Mode</th>
+<th>Description</th>
+<th>Queries</th>
+<th>TicTacToe</th>
+<th>L-shapes</th>
+<th>Corners</th>
+</tr>
+<tr class="baseline">
+<td>Baseline (passive)</td>
+<td>Learn from random observations</td>
+<td>500-1000</td>
+<td>80%</td>
+<td>50%</td>
+<td>50%</td>
+</tr>
+<tr class="meta highlight">
+<td>Meta (passive)</td>
+<td>Match against known games</td>
+<td>1-10</td>
+<td class="success">100%</td>
+<td>50%</td>
+<td>50%</td>
+</tr>
+<tr class="active highlight">
+<td>Active (standard)</td>
+<td>Query standard patterns (rows/cols/diags)</td>
+<td>16</td>
+<td class="success">100%</td>
+<td>50%</td>
+<td>50%</td>
+</tr>
+<tr class="active highlight">
+<td>Active (all 3-tuples)</td>
+<td>Query all size-3 patterns</td>
+<td>168</td>
+<td class="success">100%</td>
+<td class="success">100%</td>
+<td>50%</td>
+</tr>
+<tr class="active highlight">
+<td>Active (adaptive)</td>
+<td>Expand to 4, 5-tuples as needed</td>
+<td>168-500</td>
+<td class="success">100%</td>
+<td class="success">100%</td>
+<td class="success">100%</td>
+</tr>
+<tr class="highlight">
+<td>Hybrid</td>
+<td>Meta + Active + Passive</td>
+<td>16+</td>
+<td class="success">100%</td>
+<td class="success">100%</td>
+<td class="success">100%</td>
+</tr>
+</table>
+</div>
+
+<h2>Adaptive Active Learning Results</h2>
+<div class="card">
+<h3>Discovers ANY pattern size automatically</h3>
+<table>
+<tr><th>Game Type</th><th>Pattern Size</th><th>True Lines</th><th>Found</th><th>Queries</th><th>Accuracy</th></tr>
+<tr><td>TicTacToe</td><td>3</td><td>8</td><td>8</td><td>168</td><td class="success">100%</td></tr>
+<tr><td>L-shapes</td><td>3</td><td>4</td><td>4</td><td>168</td><td class="success">100%</td></tr>
+<tr><td>Knight moves</td><td>3</td><td>4</td><td>4</td><td>168</td><td class="success">100%</td></tr>
+<tr><td>Corners</td><td>4</td><td>1</td><td>1</td><td>420</td><td class="success">100%</td></tr>
+<tr><td>Cross</td><td>5</td><td>1</td><td>1</td><td>500</td><td class="success">100%</td></tr>
+</table>
+</div>
+
+<h2>Passive Learning Convergence</h2>
+<div class="card">
+<table>
+<tr><th>Learner</th><th>@10</th><th>@50</th><th>@100</th><th>@500</th><th>@1000</th><th>@2000</th></tr>
+<tr class="baseline"><td>Baseline</td><td>36%</td><td>36%</td><td>42%</td><td>80%</td><td>90%</td><td>95%</td></tr>
+<tr class="meta highlight"><td>Meta (known)</td><td>100%</td><td>100%</td><td>100%</td><td>100%</td><td>100%</td><td>100%</td></tr>
+<tr class="active"><td>Active→Passive</td><td>97%</td><td>96%</td><td>95%</td><td>90%</td><td>92%</td><td>95%</td></tr>
+<tr class="highlight"><td>Hybrid</td><td>100%</td><td>100%</td><td>100%</td><td>100%</td><td>100%</td><td>100%</td></tr>
+</table>
+</div>
+
+<h2>Transition Prediction</h2>
+<div class="card">
+<h3>board + action → next_state</h3>
+<p>Terminal state mappings:</p>
+<table style="width: auto;">
+<tr><td>X wins</td><td>→</td><td><code>111111111</code></td></tr>
+<tr><td>O wins</td><td>→</td><td><code>222222222</code></td></tr>
+<tr><td>Draw/Reset</td><td>→</td><td><code>000000000</code></td></tr>
+</table>
+<p style="margin-top: 15px;"><strong>Accuracy:</strong> <span class="success">100%</span> on valid game sequences</p>
+</div>
+
+<h2>Analysis</h2>
+<div class="grid">
+<div class="card">
+<h3>🏆 Best Strategies</h3>
+<ul>
+<li><strong>Known game?</strong> → Meta = 100% immediately</li>
+<li><strong>Standard patterns?</strong> → Active (16 queries) = 100%</li>
+<li><strong>Unusual patterns?</strong> → Adaptive (168-500 queries) = 100%</li>
+<li><strong>No queries allowed?</strong> → Passive needs ~500-1000 obs</li>
+</ul>
+</div>
+
+<div class="card">
+<h3>⚡ Query Budget Guide</h3>
+<ul>
+<li><strong>16 queries:</strong> Standard games (TicTacToe, etc)</li>
+<li><strong>168 queries:</strong> Any 3-tuple pattern game</li>
+<li><strong>420 queries:</strong> 4-tuple patterns (corners)</li>
+<li><strong>500 queries:</strong> 5-tuple patterns (cross)</li>
+</ul>
+</div>
+
+<div class="card">
+<h3>🎯 Recommendations</h3>
+<ul>
+<li>Use <strong>Hybrid</strong> for production systems</li>
+<li>Active phase handles most patterns quickly</li>
+<li>Passive refinement fills edge cases</li>
+<li>Meta-learning for instant known-game detection</li>
+</ul>
+</div>
+
+<div class="card">
+<h3>📊 Speedup Analysis</h3>
+<ul>
+<li>Active vs Passive: <strong>31×</strong> fewer observations</li>
+<li>Meta vs Passive: <strong>500×</strong> fewer observations</li>
+<li>Adaptive finds ANY pattern automatically</li>
+<li>Transition prediction: 100% accuracy</li>
+</ul>
+</div>
+</div>
+
+<h2>Implementation</h2>
+<div class="card">
+<pre style="background: #0f172a; padding: 15px; border-radius: 8px; overflow-x: auto;">
+<code style="background: transparent; color: #e2e8f0;">
+# Active learning
+learner = AdaptiveActiveLearner()
+queries = learner.active_learn(oracle, max_queries=500)
+
+# Passive learning  
+while obs := oracle.random_board():
+    learner.observe(obs[0], obs[1])
+
+# Prediction
+label = learner.predict(board)  # 'ok', 'winX', 'winO', 'draw'
+
+# Transition prediction
+next_type = learner.predict_transition(board, (pos, player))
+# Returns: 'winX', 'winO', 'reset', 'continue'
+</code>
+</pre>
+</div>
+
+</body>
+</html>

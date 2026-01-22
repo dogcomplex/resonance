@@ -1,0 +1,76 @@
+{
+  "passive_learning": {
+    "checkpoints": [
+      10,
+      50,
+      100,
+      200,
+      500,
+      1000,
+      2000,
+      5000
+    ],
+    "tictactoe": {
+      "baseline": [
+        33,
+        33,
+        36,
+        72,
+        77,
+        78,
+        90,
+        97
+      ],
+      "meta": [
+        100,
+        100,
+        100,
+        100,
+        100,
+        100,
+        100,
+        100
+      ]
+    },
+    "random10": {
+      "baseline": [
+        32,
+        23,
+        21,
+        20,
+        20,
+        20,
+        20,
+        20
+      ],
+      "meta": [
+        30,
+        23,
+        21,
+        20,
+        20,
+        20,
+        20,
+        20
+      ]
+    }
+  },
+  "active_learning": {
+    "queries": 16,
+    "accuracy": 100,
+    "rules_found": 16
+  },
+  "transition_prediction": {
+    "accuracy": 100,
+    "terminal_states": {
+      "winX": "111111111",
+      "winO": "222222222",
+      "reset": "000000000"
+    }
+  },
+  "speedup": {
+    "passive_to_75pct": 500,
+    "active_to_100pct": 16,
+    "speedup_factor": 31
+  }
+}

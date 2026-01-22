@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+body { font-family: system-ui; background: #0f172a; color: #e2e8f0; padding: 20px; max-width: 1200px; margin: 0 auto; }
+h1 { color: #f59e0b; border-bottom: 2px solid #f59e0b; padding-bottom: 10px; }
+h2 { color: #94a3b8; margin-top: 30px; }
+.warning { background: #7c2d12; border: 1px solid #f97316; border-radius: 8px; padding: 15px; margin: 20px 0; }
+.warning h3 { color: #fb923c; margin-top: 0; }
+.card { background: #1e293b; border-radius: 12px; padding: 20px; margin: 20px 0; border: 1px solid #334155; }
+table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+th, td { padding: 8px 12px; text-align: right; border-bottom: 1px solid #334155; }
+th { color: #94a3b8; font-weight: 500; }
+td:first-child { text-align: left; }
+.good { color: #22c55e; }
+.bad { color: #ef4444; }
+.meh { color: #f59e0b; }
+code { background: #334155; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+.insight { background: #1e3a5f; border-left: 4px solid #3b82f6; padding: 15px; margin: 15px 0; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+</style>
+</head>
+<body>
+
+<h1>📊 Honest Metrics - Few-Shot Rule Learning</h1>
+
+<div class="warning">
+<h3>⚠️ Why Raw Accuracy is Misleading</h3>
+<p>The 'ok' class dominates (75%+ of all states). Predicting 'ok' always gives 75%+ accuracy!</p>
+<p><strong>Better metric:</strong> Minority class accuracy (winX, winO) shows actual learning.</p>
+</div>
+
+<h2>1. Class Distribution</h2>
+<div class="card">
+<p>This explains why "100% accuracy" claims are hollow:</p>
+<table>
+<tr><th>Game</th><th>ok</th><th>winX</th><th>winO</th><th>draw</th></tr>
+<tr><td>TicTacToe (8 lines)</td><td class="bad">76.7%</td><td>16.0%</td><td class="meh">7.0%</td><td class="meh">0.3%</td></tr>
+<tr><td>Rows only (3 lines)</td><td class="bad">90.7%</td><td>5.7%</td><td class="meh">2.3%</td><td>1.4%</td></tr>
+<tr><td>Diags only (2 lines)</td><td class="bad">91.6%</td><td>4.6%</td><td class="meh">2.3%</td><td>1.4%</td></tr>
+</table>
+<div class="insight">
+<strong>Key:</strong> A "dumb" classifier predicting all 'ok' gets 75-90% raw accuracy!
+</div>
+</div>
+
+<h2>2. Real Convergence Speed</h2>
+<div class="card">
+<p>Minority class (winX, winO) accuracy over time:</p>
+<table>
+<tr><th>Observations</th><th>ok</th><th>winX</th><th>winO</th><th>draw</th><th>Minority Min</th></tr>
+<tr><td>50</td><td class="good">94%</td><td class="bad">14%</td><td class="bad">0%</td><td>100%</td><td class="bad">0%</td></tr>
+<tr><td>100</td><td class="good">97%</td><td class="bad">27%</td><td class="bad">10%</td><td>100%</td><td class="bad">10%</td></tr>
+<tr><td>200</td><td class="good">97%</td><td class="meh">57%</td><td class="bad">35%</td><td>100%</td><td class="bad">35%</td></tr>
+<tr><td>500</td><td class="good">97%</td><td class="meh">79%</td><td class="meh">57%</td><td>100%</td><td class="meh">57%</td></tr>
+<tr><td>1000</td><td class="good">98%</td><td class="good">90%</td><td class="meh">77%</td><td>100%</td><td class="meh">77%</td></tr>
+<tr><td>2000</td><td class="good">99%</td><td class="good">95%</td><td class="good">89%</td><td>100%</td><td class="good">89%</td></tr>
+</table>
+<div class="insight">
+<strong>Reality:</strong> winO (7% of data) takes ~2000 observations to reach 90%!
+</div>
+</div>
+
+<h2>3. Noise Robustness</h2>
+<div class="card">
+<p>How label noise affects learning:</p>
+<table>
+<tr><th>Noise</th><th>@500 minority</th><th>@1000 minority</th><th>Final rules</th></tr>
+<tr><td>0%</td><td class="meh">57%</td><td class="meh">77%</td><td class="good">16</td></tr>
+<tr><td>5%</td><td class="bad">23%</td><td class="bad">44%</td><td class="bad">2</td></tr>
+<tr><td>10%</td><td class="bad">29%</td><td class="bad">20%</td><td class="bad">2</td></tr>
+<tr><td>15%</td><td class="bad">37%</td><td class="bad">29%</td><td class="bad">0</td></tr>
+</table>
+<div class="insight">
+<strong>Problem:</strong> Even 5% noise breaks the basic learner! Rules keep getting invalidated.
+</div>
+</div>
+
+<h2>4. Active Learning (Honest Assessment)</h2>
+<div class="card">
+<table>
+<tr><th>Scenario</th><th>Queries</th><th>Accuracy</th><th>Notes</th></tr>
+<tr><td>Standard patterns (rows/cols/diags)</td><td>16</td><td class="good">100%</td><td>Only works if patterns are "standard"</td></tr>
+<tr><td>All 3-tuples</td><td>168</td><td class="good">100%</td><td>Works for any 3-position pattern</td></tr>
+<tr><td>Up to 4-tuples</td><td>420</td><td class="good">100%</td><td>Handles corner patterns</td></tr>
+<tr><td>Unknown 5-tuple</td><td>500+</td><td class="meh">~80%</td><td>May not find all patterns</td></tr>
+</table>
+<div class="insight">
+<strong>Caveat:</strong> Active learning assumes you know the pattern SIZE. Unknown pattern types need exhaustive search.
+</div>
+</div>
+
+<h2>5. Meta-Learning (Honest Assessment)</h2>
+<div class="card">
+<table>
+<tr><th>Scenario</th><th>Performance</th><th>Notes</th></tr>
+<tr><td>Known game (TicTacToe)</td><td class="good">100% @ obs 1</td><td>Literally has the answer key!</td></tr>
+<tr><td>Variant (RowsOnly)</td><td class="good">100% @ obs 1</td><td>In the library</td></tr>
+<tr><td>Unknown game (L-shapes)</td><td class="bad">50% → falls back</td><td>Library doesn't help</td></tr>
+</table>
+<div class="insight">
+<strong>Caveat:</strong> Meta-learning is just a lookup table. It's "cheating" for known games.
+</div>
+</div>
+
+<h2>6. Observations Needed (70% minority accuracy)</h2>
+<div class="card">
+<table>
+<tr><th>Learner Config</th><th>No noise</th><th>5% noise</th><th>10% noise</th></tr>
+<tr><td>Strict (p=1.0)</td><td class="good">695</td><td class="bad">3000+</td><td class="bad">3000+</td></tr>
+<tr><td>Balanced (p=0.95)</td><td class="meh">1105</td><td class="bad">2783</td><td class="bad">3000+</td></tr>
+<tr><td>Relaxed (p=0.90)</td><td class="meh">1105</td><td class="meh">1851</td><td class="bad">3000+</td></tr>
+<tr><td>Robust (p=0.85)</td><td class="bad">1503</td><td class="meh">1882</td><td class="meh">2807</td></tr>
+</table>
+<div class="insight">
+<strong>Trade-off:</strong> Noise-robust configs are slower but handle real-world messiness.
+</div>
+</div>
+
+<h2>Summary: What Actually Works</h2>
+<div class="grid">
+<div class="card">
+<h3>✅ Works Well</h3>
+<ul>
+<li>Active learning for standard patterns (16 queries)</li>
+<li>Meta-learning for known games</li>
+<li>Pattern learning converges (~1000 obs for 80%)</li>
+</ul>
+</div>
+<div class="card">
+<h3>⚠️ Limitations</h3>
+<ul>
+<li>Noise >5% breaks strict learners</li>
+<li>Rare classes (winO, draw) converge slowly</li>
+<li>Unknown patterns need exhaustive search</li>
+<li>Meta-learning = "cheating" for known games</li>
+</ul>
+</div>
+<div class="card">
+<h3>📏 Honest Metrics</h3>
+<ul>
+<li><strong>Don't use:</strong> Raw accuracy (inflated by 'ok')</li>
+<li><strong>Use:</strong> Minority class accuracy</li>
+<li><strong>Use:</strong> Observations to threshold</li>
+<li><strong>Track:</strong> Per-class breakdown</li>
+</ul>
+</div>
+</div>
+
+</body>
+</html>

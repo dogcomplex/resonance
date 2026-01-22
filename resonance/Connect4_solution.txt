@@ -1,0 +1,123 @@
+C:\STUFF\DOWNLOADS\c4_windows_package\c4_windows_package>python c4_crystal.py
+
+Starting fresh...
+Initialized at START position
+============================================================
+🔮 CRYSTALLINE WAVE SOLVER 🔮
+Phase 1: Lightning → Find solution spine
+Phase 2: Crystallization → Grow from spine
+============================================================
+
+============================================================
+⚡ PHASE 1: LIGHTNING
+============================================================
+
+--- Depth 0 ---
+  Expanded: 1, Terminals: 0, New: 4
+  Propagated: 0, Equiv: 0
+  Solved: 0, Time: 0.0s, Elapsed: 0.0s
+  [Saved: phase=lightning, depth=1, solved=0, spine=0]
+
+--- Depth 1 ---
+  Expanded: 4, Terminals: 0, New: 25
+  Propagated: 0, Equiv: 0
+  Solved: 0, Time: 0.0s, Elapsed: 0.0s
+  [Saved: phase=lightning, depth=2, solved=0, spine=0]
+
+--- Depth 2 ---
+  Expanded: 25, Terminals: 0, New: 121
+  Propagated: 0, Equiv: 0
+  Solved: 0, Time: 0.0s, Elapsed: 0.0s
+  [Saved: phase=lightning, depth=3, solved=0, spine=0]
+
+--- Depth 3 ---
+  Expanded: 121, Terminals: 0, New: 568
+  Propagated: 0, Equiv: 0
+  Solved: 0, Time: 0.1s, Elapsed: 0.1s
+  [Saved: phase=lightning, depth=4, solved=0, spine=0]
+
+--- Depth 4 ---
+  Expanded: 568, Terminals: 0, New: 2,144
+  Propagated: 0, Equiv: 0
+  Solved: 0, Time: 0.3s, Elapsed: 0.4s
+  [Saved: phase=lightning, depth=5, solved=0, spine=0]
+
+--- Depth 5 ---
+  Expanded: 2,144, Terminals: 0, New: 8,231
+  Propagated: 0, Equiv: 0
+  Solved: 0, Time: 1.0s, Elapsed: 1.4s
+  [Saved: phase=lightning, depth=6, solved=0, spine=0]
+
+--- Depth 6 ---
+  Expanded: 8,231, Terminals: 0, New: 27,473
+  Propagated: 0, Equiv: 0
+  Solved: 0, Time: 3.5s, Elapsed: 4.8s
+  [Saved: phase=lightning, depth=7, solved=0, spine=0]
+
+--- Depth 7 ---
+  Expanded: 27,473, Terminals: 364, New: 92,244
+  Propagated: 657, Equiv: 8,305
+  Solved: 9,326, Time: 11.9s, Elapsed: 16.7s
+  [Saved: phase=lightning, depth=8, solved=9,326, spine=0]
+
+--- Depth 8 ---
+  Expanded: 92,244, Terminals: 949, New: 279,241
+  Propagated: 7,963, Equiv: 29,891
+  Solved: 48,129, Time: 37.0s, Elapsed: 54.0s
+
+============================================================
+⚡ LIGHTNING STRIKE: X WINS ⚡
+  Time: 54.0s
+  States explored: 410,052
+============================================================
+
+  Crystallized spine: 7 states
+  [Saved: phase=crystallizing, depth=9, solved=48,129, spine=7]
+
+============================================================
+🔮 PHASE 2: CRYSTALLIZATION
+Growing solved region from spine...
+============================================================
+
+  Initial growth front: 4 states adjacent to spine
+  Wave 1: expanded 279,241, terminals 9,710, new 831,581
+    Crystallized: 184,431 (prop=18,218, equiv=166,213)
+    Total solved: 242,270, growth front: 621,640
+    Batch 500000/831581
+  Wave 2: expanded 831,581, terminals 22,117, new 2,284,733
+    Crystallized: 659,947 (prop=64,929, equiv=595,018)
+    Total solved: 924,334, growth front: 1,951,665
+    Batch 500000/2284733
+    Batch 1000000/2284733
+    Batch 1500000/2284733
+    Batch 2000000/2284733
+  Wave 3: expanded 2,284,733, terminals 136,646, new 6,118,941
+    Crystallized: 2,098,576 (prop=143,116, equiv=1,955,460)
+    Total solved: 3,159,556, growth front: 5,949,223
+    Batch 500000/6118941
+    Batch 1000000/6118941
+    Batch 1500000/6118941
+    Batch 2000000/6118941
+    Batch 2500000/6118941
+    Batch 3000000/6118941
+    Batch 3500000/6118941
+    Batch 4000000/6118941
+    Batch 4500000/6118941
+    Batch 5000000/6118941
+    Batch 5500000/6118941
+    Batch 6000000/6118941
+  Wave 4: expanded 6,118,941, terminals 286,705, new 15,465,573
+    Crystallized: 5,768,845 (prop=215,140, equiv=5,553,705)
+    Total solved: 9,215,106, growth front: 15,171,450
+    Batch 500000/15465573
+    Batch 1000000/15465573
+    Batch 1500000/15465573
+    Batch 2000000/15465573
+    Batch 2500000/15465573
+    Batch 3000000/15465573
+    Batch 3500000/15465573
+    Batch 4000000/15465573
+    Batch 4500000/15465573
+    Batch 5000000/15465573
+    Batch 5500000/15465573
+    Batch 6000000/15465573

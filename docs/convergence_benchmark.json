@@ -1,0 +1,96 @@
+{
+  "environment": "MiniRPG",
+  "test_size": 12467,
+  "convergence": [
+    {
+      "episodes": 50,
+      "transitions": 1419,
+      "vocabulary": 56,
+      "rules": 4768,
+      "compressed": 674,
+      "precision": 0.968025667975881,
+      "recall": 0.9485581092801387,
+      "f1": 0.9581930184804928
+    },
+    {
+      "episodes": 100,
+      "transitions": 2644,
+      "vocabulary": 57,
+      "rules": 6615,
+      "compressed": 772,
+      "precision": 0.9758876230505475,
+      "recall": 0.9565264527320034,
+      "f1": 0.9661100465370928
+    },
+    {
+      "episodes": 200,
+      "transitions": 5090,
+      "vocabulary": 57,
+      "rules": 8594,
+      "compressed": 846,
+      "precision": 0.9782893160581655,
+      "recall": 0.9591102919919052,
+      "f1": 0.9686048739541802
+    },
+    {
+      "episodes": 500,
+      "transitions": 13097,
+      "vocabulary": 57,
+      "rules": 9312,
+      "compressed": 815,
+      "precision": 0.9854430145013537,
+      "recall": 0.9601944203527031,
+      "f1": 0.9726548915530338
+    },
+    {
+      "episodes": 1000,
+      "transitions": 25500,
+      "vocabulary": 57,
+      "rules": 9419,
+      "compressed": 728,
+      "precision": 0.983200429240134,
+      "recall": 0.9601944203527031,
+      "f1": 0.9715612516340169
+    },
+    {
+      "episodes": 1500,
+      "transitions": 38561,
+      "vocabulary": 57,
+      "rules": 9422,
+      "compressed": 717,
+      "precision": 0.9832337102355794,
+      "recall": 0.9600137322925701,
+      "f1": 0.9714849928232508
+    },
+    {
+      "episodes": 2000,
+      "transitions": 51599,
+      "vocabulary": 57,
+      "rules": 9430,
+      "compressed": 694,
+      "precision": 0.9839074074074075,
+      "recall": 0.9600137322925701,
+      "f1": 0.9718137254901961
+    },
+    {
+      "episodes": 3000,
+      "transitions": 77303,
+      "vocabulary": 57,
+      "rules": 9421,
+      "compressed": 710,
+      "precision": 0.9847863596727212,
+      "recall": 0.9590741543798785,
+      "f1": 0.9717602043151506
+    }
+  ],
+  "compression": {
+    "original": 9430,
+    "compressed": 694,
+    "ratio": 0.0735949098621421
+  },
+  "summary": {
+    "final_f1": 0.9717602043151506,
+    "compression_ratio": 0.0735949098621421,
+    "convergence_episode": 500
+  }
+}

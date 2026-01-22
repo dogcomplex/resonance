@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+body { font-family: system-ui; background: #0f172a; color: #e2e8f0; padding: 20px; max-width: 1200px; margin: 0 auto; }
+h1 { color: #22d3ee; border-bottom: 2px solid #22d3ee; padding-bottom: 10px; }
+h2 { color: #94a3b8; margin-top: 30px; }
+.card { background: #1e293b; border-radius: 12px; padding: 20px; margin: 20px 0; border: 1px solid #334155; }
+.metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin: 20px 0; }
+.metric { background: #334155; padding: 15px; border-radius: 8px; text-align: center; }
+.metric-value { font-size: 2rem; font-weight: bold; color: #22d3ee; }
+.metric-label { color: #94a3b8; font-size: 0.9rem; }
+table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+th, td { padding: 10px; text-align: right; border-bottom: 1px solid #334155; }
+th { color: #94a3b8; font-weight: 500; }
+td:first-child, th:first-child { text-align: left; }
+.good { color: #22c55e; }
+.chart { height: 200px; display: flex; align-items: end; gap: 4px; padding: 20px 0; }
+.bar { background: linear-gradient(to top, #0891b2, #22d3ee); border-radius: 4px 4px 0 0; min-width: 30px; }
+.bar-label { text-align: center; font-size: 0.7rem; color: #94a3b8; margin-top: 5px; }
+.insight { background: #1e3a5f; border-left: 4px solid #3b82f6; padding: 15px; margin: 15px 0; }
+.comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+</style>
+</head>
+<body>
+
+<h1>📊 Token Learning Convergence Analysis</h1>
+
+<div class="metric-grid">
+    <div class="metric">
+        <div class="metric-value good">97.2%</div>
+        <div class="metric-label">Final F1 Score</div>
+    </div>
+    <div class="metric">
+        <div class="metric-value">500</div>
+        <div class="metric-label">Episodes to Converge</div>
+    </div>
+    <div class="metric">
+        <div class="metric-value">7.4%</div>
+        <div class="metric-label">Compression Ratio</div>
+    </div>
+    <div class="metric">
+        <div class="metric-value">694</div>
+        <div class="metric-label">Compressed Rules</div>
+    </div>
+</div>
+
+<h2>Convergence Over Training</h2>
+<div class="card">
+    <p>F1 score on held-out test set (12,467 transitions):</p>
+    <table>
+        <tr>
+            <th>Episodes</th>
+            <th>Transitions</th>
+            <th>Vocabulary</th>
+            <th>Rules</th>
+            <th>Compressed</th>
+            <th>Precision</th>
+            <th>Recall</th>
+            <th>F1</th>
+        </tr>
+        <tr><td>50</td><td>1,419</td><td>56</td><td>4,768</td><td>674</td><td>96.8%</td><td>94.9%</td><td class="good">95.8%</td></tr>
+        <tr><td>100</td><td>2,644</td><td>57</td><td>6,615</td><td>772</td><td>97.6%</td><td>95.7%</td><td class="good">96.6%</td></tr>
+        <tr><td>200</td><td>5,090</td><td>57</td><td>8,594</td><td>846</td><td>97.8%</td><td>95.9%</td><td class="good">96.9%</td></tr>
+        <tr><td>500</td><td>13,097</td><td>57</td><td>9,312</td><td>815</td><td>98.5%</td><td>96.0%</td><td class="good">97.3%</td></tr>
+        <tr><td>1000</td><td>25,500</td><td>57</td><td>9,419</td><td>728</td><td>98.3%</td><td>96.0%</td><td class="good">97.2%</td></tr>
+        <tr><td>2000</td><td>51,599</td><td>57</td><td>9,430</td><td>694</td><td>98.4%</td><td>96.0%</td><td class="good">97.2%</td></tr>
+        <tr><td>3000</td><td>77,303</td><td>57</td><td>9,421</td><td>710</td><td>98.5%</td><td>95.9%</td><td class="good">97.2%</td></tr>
+    </table>
+    
+    <div class="insight">
+        <strong>Key Finding:</strong> F1 stabilizes at ~97% after just 500 episodes. 
+        Additional training provides no improvement.
+    </div>
+</div>
+
+<h2>Rule Compression</h2>
+<div class="comparison">
+    <div class="card">
+        <h3>Before Compression</h3>
+        <div class="metric">
+            <div class="metric-value">9,430</div>
+            <div class="metric-label">Total Rules</div>
+        </div>
+        <p>Distribution by pattern size:</p>
+        <ul>
+            <li>Size 1: ~30 rules</li>
+            <li>Size 2: ~900 rules</li>
+            <li>Size 3: ~8,500 rules</li>
+        </ul>
+    </div>
+    <div class="card">
+        <h3>After Compression</h3>
+        <div class="metric">
+            <div class="metric-value good">694</div>
+            <div class="metric-label">Compressed Rules</div>
+        </div>
+        <p>92.6% of rules removed as redundant!</p>
+        <p><strong>Same accuracy:</strong> 97.2% F1</p>
+    </div>
+</div>
+
+<h2>Accuracy by Effect Category</h2>
+<div class="card">
+    <table>
+        <tr>
+            <th>Category</th>
+            <th>Description</th>
+            <th>Precision</th>
+            <th>Recall</th>
+        </tr>
+        <tr>
+            <td>Position</td>
+            <td>at_X_Y, room_NAME changes</td>
+            <td class="good">99.4%</td>
+            <td class="good">100%</td>
+        </tr>
+        <tr>
+            <td>HP</td>
+            <td>hp_N changes</td>
+            <td class="good">97.1%</td>
+            <td class="good">100%</td>
+        </tr>
+        <tr>
+            <td>Items</td>
+            <td>has_sword, has_crown</td>
+            <td class="good">98.0%</td>
+            <td>91.0%</td>
+        </tr>
+        <tr>
+            <td>Combat</td>
+            <td>fighting_X, in_combat, see_X</td>
+            <td class="good">98.5%</td>
+            <td>87.2%</td>
+        </tr>
+    </table>
+    
+    <div class="insight">
+        <strong>Pattern:</strong> Deterministic effects (position, HP) have perfect recall. 
+        Conditional effects (combat, items) have slightly lower recall due to context complexity.
+    </div>
+</div>
+
+<h2>Sample Compressed Rules</h2>
+<div class="card">
+    <table>
+        <tr><th>Pattern</th><th>Effect</th><th>Confidence</th><th>Support</th></tr>
+        <tr><td>{action_flee}</td><td>-in_combat</td><td>100%</td><td>5,318</td></tr>
+        <tr><td>{action_attack, has_sword, fighting_rat}</td><td>-fighting_rat</td><td>100%</td><td>436</td></tr>
+        <tr><td>{action_pickup_sword}</td><td>+has_sword</td><td>100%</td><td>561</td></tr>
+        <tr><td>{action_move_right, at_0_0}</td><td>+at_1_0</td><td>100%</td><td>2,461</td></tr>
+        <tr><td>{hp_1, action_flee}</td><td>+dead</td><td>100%</td><td>531</td></tr>
+    </table>
+    
+    <div class="insight">
+        <strong>Conditional Rule Example:</strong><br>
+        <code>{action_attack, has_sword, fighting_rat} → -fighting_rat</code><br>
+        The learner correctly discovers that having a sword changes combat outcome!
+    </div>
+</div>
+
+<h2>Summary</h2>
+<div class="card">
+    <h3>✅ What Works Well</h3>
+    <ul>
+        <li><strong>Fast convergence:</strong> 500 episodes to 97%+ accuracy</li>
+        <li><strong>High precision:</strong> 98%+ (predictions are reliable)</li>
+        <li><strong>Massive compression:</strong> 92% of rules are redundant</li>
+        <li><strong>Conditional effects:</strong> Correctly learns context-dependent rules</li>
+    </ul>
+    
+    <h3>⚠️ Limitations</h3>
+    <ul>
+        <li><strong>Rule explosion:</strong> ~10k rules before compression</li>
+        <li><strong>Combat recall:</strong> 87% (misses some rare combat outcomes)</li>
+        <li><strong>Vocabulary dependency:</strong> Needs good tokenization</li>
+    </ul>
+    
+    <h3>📈 Ready For</h3>
+    <ul>
+        <li>Larger environments (100+ tokens)</li>
+        <li>More complex conditional effects</li>
+        <li>Pokemon-style state spaces</li>
+    </ul>
+</div>
+
+</body>
+</html>

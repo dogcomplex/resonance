@@ -1,0 +1,571 @@
+======================================================================
+POKEMON-LITE FULL SIMULATION LOG
+======================================================================
+
+======================================================================
+PHASE 1: TRAINING
+======================================================================
+
+──────────────────────────────────────────────────────────────────────
+OBSERVATION 1
+──────────────────────────────────────────────────────────────────────
+
+[RAW STATE]
+  Player: type=fire, ATK=80
+  Enemy:  type=grass, DEF=50
+  Move:   type=fire, power=strong (90)
+
+[DAMAGE CALCULATION]
+  Base power: 90
+  Type mult:  2.0x (super_effective)
+  STAB mult:  1.5x (same type)
+  Formula:    (90 × 80 / 50) × 2.0 × 1.5 / 3
+  Result:     144 HP → bucket: massive
+
+[ABSTRACTION: Raw → Tokens]
+  player_type=fire → player.type.fire
+  enemy_type=grass → enemy.type.grass
+  move_type=fire → move.type.fire
+  power=strong → move.power.strong
+
+  [DERIVED TOKENS]
+  fire vs grass = 2.0x → matchup.super_effective
+  move_type == player_type → move.stab
+
+[FINAL TOKEN SET] (6 tokens)
+  • enemy.type.grass
+  • matchup.super_effective
+  • move.power.strong
+  • move.stab
+  • move.type.fire
+  • player.type.fire
+
+[PATTERN STORAGE]
+
+  Storing patterns for effect: damage.massive
+    {'enemy.type.grass'}
+      → damage.massive: 1/1 (100%)
+    {'matchup.super_effective'}
+      → damage.massive: 1/1 (100%)
+    {'move.power.strong'}
+      → damage.massive: 1/1 (100%)
+    {'move.stab'}
+      → damage.massive: 1/1 (100%)
+    {'move.type.fire'}
+      → damage.massive: 1/1 (100%)
+    {'player.type.fire'}
+      → damage.massive: 1/1 (100%)
+    {'matchup.super_effective', 'enemy.type.grass'}
+      → damage.massive: 1/1 (100%)
+    {'move.power.strong', 'enemy.type.grass'}
+      → damage.massive: 1/1 (100%)
+    {'move.stab', 'enemy.type.grass'}
+      → damage.massive: 1/1 (100%)
+    {'move.type.fire', 'enemy.type.grass'}
+      → damage.massive: 1/1 (100%)
+    {'player.type.fire', 'enemy.type.grass'}
+      → damage.massive: 1/1 (100%)
+    {'matchup.super_effective', 'move.power.strong'}
+      → damage.massive: 1/1 (100%)
+    {'move.stab', 'matchup.super_effective'}
+      → damage.massive: 1/1 (100%)
+    {'move.type.fire', 'matchup.super_effective'}
+      → damage.massive: 1/1 (100%)
+    {'matchup.super_effective', 'player.type.fire'}
+      → damage.massive: 1/1 (100%)
+    {'move.stab', 'move.power.strong'}
+      → damage.massive: 1/1 (100%)
+    {'move.type.fire', 'move.power.strong'}
+      → damage.massive: 1/1 (100%)
+    {'move.power.strong', 'player.type.fire'}
+      → damage.massive: 1/1 (100%)
+    {'move.stab', 'move.type.fire'}
+      → damage.massive: 1/1 (100%)
+    {'move.stab', 'player.type.fire'}
+      → damage.massive: 1/1 (100%)
+    {'move.type.fire', 'player.type.fire'}
+      → damage.massive: 1/1 (100%)
+  Total patterns stored: 41
+
+──────────────────────────────────────────────────────────────────────
+OBSERVATION 2
+──────────────────────────────────────────────────────────────────────
+
+[RAW STATE]
+  Player: type=fire, ATK=60
+  Enemy:  type=grass, DEF=70
+  Move:   type=fire, power=medium (65)
+
+[DAMAGE CALCULATION]
+  Base power: 65
+  Type mult:  2.0x (super_effective)
+  STAB mult:  1.5x (same type)
+  Formula:    (65 × 60 / 70) × 2.0 × 1.5 / 3
+  Result:     55 HP → bucket: medium
+
+[ABSTRACTION: Raw → Tokens]
+  player_type=fire → player.type.fire
+  enemy_type=grass → enemy.type.grass
+  move_type=fire → move.type.fire
+  power=medium → move.power.medium
+
+  [DERIVED TOKENS]
+  fire vs grass = 2.0x → matchup.super_effective
+  move_type == player_type → move.stab
+
+[FINAL TOKEN SET] (6 tokens)
+  • enemy.type.grass
+  • matchup.super_effective
+  • move.power.medium
+  • move.stab
+  • move.type.fire
+  • player.type.fire
+
+[PATTERN STORAGE]
+
+  Storing patterns for effect: damage.medium
+    {'enemy.type.grass'}
+      → damage.medium: 1/2 (50%)
+    {'matchup.super_effective'}
+      → damage.medium: 1/2 (50%)
+    {'move.power.medium'}
+      → damage.medium: 1/1 (100%)
+    {'move.stab'}
+      → damage.medium: 1/2 (50%)
+    {'move.type.fire'}
+      → damage.medium: 1/2 (50%)
+    {'player.type.fire'}
+      → damage.medium: 1/2 (50%)
+    {'matchup.super_effective', 'enemy.type.grass'}
+      → damage.medium: 1/2 (50%)
+    {'move.power.medium', 'enemy.type.grass'}
+      → damage.medium: 1/1 (100%)
+    {'move.stab', 'enemy.type.grass'}
+      → damage.medium: 1/2 (50%)
+    {'move.type.fire', 'enemy.type.grass'}
+      → damage.medium: 1/2 (50%)
+    {'player.type.fire', 'enemy.type.grass'}
+      → damage.medium: 1/2 (50%)
+    {'matchup.super_effective', 'move.power.medium'}
+      → damage.medium: 1/1 (100%)
+    {'move.stab', 'matchup.super_effective'}
+      → damage.medium: 1/2 (50%)
+    {'move.type.fire', 'matchup.super_effective'}
+      → damage.medium: 1/2 (50%)
+    {'matchup.super_effective', 'player.type.fire'}
+      → damage.medium: 1/2 (50%)
+    {'move.stab', 'move.power.medium'}
+      → damage.medium: 1/1 (100%)
+    {'move.type.fire', 'move.power.medium'}
+      → damage.medium: 1/1 (100%)
+    {'player.type.fire', 'move.power.medium'}
+      → damage.medium: 1/1 (100%)
+    {'move.stab', 'move.type.fire'}
+      → damage.medium: 1/2 (50%)
+    {'move.stab', 'player.type.fire'}
+      → damage.medium: 1/2 (50%)
+    {'move.type.fire', 'player.type.fire'}
+      → damage.medium: 1/2 (50%)
+  Total patterns stored: 41
+
+──────────────────────────────────────────────────────────────────────
+OBSERVATION 3
+──────────────────────────────────────────────────────────────────────
+
+[RAW STATE]
+  Player: type=water, ATK=75
+  Enemy:  type=fire, DEF=55
+  Move:   type=water, power=strong (90)
+
+[DAMAGE CALCULATION]
+  Base power: 90
+  Type mult:  2.0x (super_effective)
+  STAB mult:  1.5x (same type)
+  Formula:    (90 × 75 / 55) × 2.0 × 1.5 / 3
+  Result:     122 HP → bucket: massive
+
+[ABSTRACTION: Raw → Tokens]
+  player_type=water → player.type.water
+  enemy_type=fire → enemy.type.fire
+  move_type=water → move.type.water
+  power=strong → move.power.strong
+
+  [DERIVED TOKENS]
+  water vs fire = 2.0x → matchup.super_effective
+  move_type == player_type → move.stab
+
+[FINAL TOKEN SET] (6 tokens)
+  • enemy.type.fire
+  • matchup.super_effective
+  • move.power.strong
+  • move.stab
+  • move.type.water
+  • player.type.water
+
+[PATTERN STORAGE]
+
+  Storing patterns for effect: damage.massive
+    {'enemy.type.fire'}
+      → damage.massive: 1/1 (100%)
+    {'matchup.super_effective'}
+      → damage.massive: 2/3 (67%)
+    {'move.power.strong'}
+      → damage.massive: 2/2 (100%)
+    {'move.stab'}
+      → damage.massive: 2/3 (67%)
+    {'move.type.water'}
+      → damage.massive: 1/1 (100%)
+    {'player.type.water'}
+      → damage.massive: 1/1 (100%)
+    {'matchup.super_effective', 'enemy.type.fire'}
+      → damage.massive: 1/1 (100%)
+    {'move.power.strong', 'enemy.type.fire'}
+      → damage.massive: 1/1 (100%)
+    {'move.stab', 'enemy.type.fire'}
+      → damage.massive: 1/1 (100%)
+    {'move.type.water', 'enemy.type.fire'}
+      → damage.massive: 1/1 (100%)
+    {'player.type.water', 'enemy.type.fire'}
+      → damage.massive: 1/1 (100%)
+    {'matchup.super_effective', 'move.power.strong'}
+      → damage.massive: 2/2 (100%)
+    {'move.stab', 'matchup.super_effective'}
+      → damage.massive: 2/3 (67%)
+    {'matchup.super_effective', 'move.type.water'}
+      → damage.massive: 1/1 (100%)
+    {'matchup.super_effective', 'player.type.water'}
+      → damage.massive: 1/1 (100%)
+    {'move.stab', 'move.power.strong'}
+      → damage.massive: 2/2 (100%)
+    {'move.type.water', 'move.power.strong'}
+      → damage.massive: 1/1 (100%)
+    {'move.power.strong', 'player.type.water'}
+      → damage.massive: 1/1 (100%)
+    {'move.stab', 'move.type.water'}
+      → damage.massive: 1/1 (100%)
+    {'move.stab', 'player.type.water'}
+      → damage.massive: 1/1 (100%)
+    {'move.type.water', 'player.type.water'}
+      → damage.massive: 1/1 (100%)
+  Total patterns stored: 41
+
+──────────────────────────────────────────────────────────────────────
+OBSERVATION 4
+──────────────────────────────────────────────────────────────────────
+
+[RAW STATE]
+  Player: type=fire, ATK=80
+  Enemy:  type=water, DEF=50
+  Move:   type=fire, power=strong (90)
+
+[DAMAGE CALCULATION]
+  Base power: 90
+  Type mult:  0.5x (resisted)
+  STAB mult:  1.5x (same type)
+  Formula:    (90 × 80 / 50) × 0.5 × 1.5 / 3
+  Result:     36 HP → bucket: medium
+
+[ABSTRACTION: Raw → Tokens]
+  player_type=fire → player.type.fire
+  enemy_type=water → enemy.type.water
+  move_type=fire → move.type.fire
+  power=strong → move.power.strong
+
+  [DERIVED TOKENS]
+  fire vs water = 0.5x → matchup.resisted
+  move_type == player_type → move.stab
+
+[FINAL TOKEN SET] (6 tokens)
+  • enemy.type.water
+  • matchup.resisted
+  • move.power.strong
+  • move.stab
+  • move.type.fire
+  • player.type.fire
+
+[PATTERN STORAGE]
+
+  Storing patterns for effect: damage.medium
+    {'enemy.type.water'}
+      → damage.medium: 1/1 (100%)
+    {'matchup.resisted'}
+      → damage.medium: 1/1 (100%)
+    {'move.power.strong'}
+      → damage.medium: 1/3 (33%)
+    {'move.stab'}
+      → damage.medium: 2/4 (50%)
+    {'move.type.fire'}
+      → damage.medium: 2/3 (67%)
+    {'player.type.fire'}
+      → damage.medium: 2/3 (67%)
+    {'matchup.resisted', 'enemy.type.water'}
+      → damage.medium: 1/1 (100%)
+    {'move.power.strong', 'enemy.type.water'}
+      → damage.medium: 1/1 (100%)
+    {'move.stab', 'enemy.type.water'}
+      → damage.medium: 1/1 (100%)
+    {'move.type.fire', 'enemy.type.water'}
+      → damage.medium: 1/1 (100%)
+    {'enemy.type.water', 'player.type.fire'}
+      → damage.medium: 1/1 (100%)
+    {'matchup.resisted', 'move.power.strong'}
+      → damage.medium: 1/1 (100%)
+    {'matchup.resisted', 'move.stab'}
+      → damage.medium: 1/1 (100%)
+    {'matchup.resisted', 'move.type.fire'}
+      → damage.medium: 1/1 (100%)
+    {'matchup.resisted', 'player.type.fire'}
+      → damage.medium: 1/1 (100%)
+    {'move.stab', 'move.power.strong'}
+      → damage.medium: 1/3 (33%)
+    {'move.type.fire', 'move.power.strong'}
+      → damage.medium: 1/2 (50%)
+    {'move.power.strong', 'player.type.fire'}
+      → damage.medium: 1/2 (50%)
+    {'move.stab', 'move.type.fire'}
+      → damage.medium: 2/3 (67%)
+    {'move.stab', 'player.type.fire'}
+      → damage.medium: 2/3 (67%)
+    {'move.type.fire', 'player.type.fire'}
+      → damage.medium: 2/3 (67%)
+  Total patterns stored: 41
+
+──────────────────────────────────────────────────────────────────────
+OBSERVATION 5
+──────────────────────────────────────────────────────────────────────
+
+[RAW STATE]
+  Player: type=electric, ATK=70
+  Enemy:  type=water, DEF=60
+  Move:   type=electric, power=medium (65)
+
+[DAMAGE CALCULATION]
+  Base power: 65
+  Type mult:  2.0x (super_effective)
+  STAB mult:  1.5x (same type)
+  Formula:    (65 × 70 / 60) × 2.0 × 1.5 / 3
+  Result:     75 HP → bucket: high
+
+[ABSTRACTION: Raw → Tokens]
+  player_type=electric → player.type.electric
+  enemy_type=water → enemy.type.water
+  move_type=electric → move.type.electric
+  power=medium → move.power.medium
+
+  [DERIVED TOKENS]
+  electric vs water = 2.0x → matchup.super_effective
+  move_type == player_type → move.stab
+
+[FINAL TOKEN SET] (6 tokens)
+  • enemy.type.water
+  • matchup.super_effective
+  • move.power.medium
+  • move.stab
+  • move.type.electric
+  • player.type.electric
+
+[PATTERN STORAGE]
+
+  Storing patterns for effect: damage.high
+    {'enemy.type.water'}
+      → damage.high: 1/2 (50%)
+    {'matchup.super_effective'}
+      → damage.high: 1/4 (25%)
+    {'move.power.medium'}
+      → damage.high: 1/2 (50%)
+    {'move.stab'}
+      → damage.high: 1/5 (20%)
+    {'move.type.electric'}
+      → damage.high: 1/1 (100%)
+    {'player.type.electric'}
+      → damage.high: 1/1 (100%)
+    {'matchup.super_effective', 'enemy.type.water'}
+      → damage.high: 1/1 (100%)
+    {'enemy.type.water', 'move.power.medium'}
+      → damage.high: 1/1 (100%)
+    {'move.stab', 'enemy.type.water'}
+      → damage.high: 1/2 (50%)
+    {'move.type.electric', 'enemy.type.water'}
+      → damage.high: 1/1 (100%)
+    {'enemy.type.water', 'player.type.electric'}
+      → damage.high: 1/1 (100%)
+    {'matchup.super_effective', 'move.power.medium'}
+      → damage.high: 1/2 (50%)
+    {'move.stab', 'matchup.super_effective'}
+      → damage.high: 1/4 (25%)
+    {'matchup.super_effective', 'move.type.electric'}
+      → damage.high: 1/1 (100%)
+    {'matchup.super_effective', 'player.type.electric'}
+      → damage.high: 1/1 (100%)
+    {'move.stab', 'move.power.medium'}
+      → damage.high: 1/2 (50%)
+    {'move.type.electric', 'move.power.medium'}
+      → damage.high: 1/1 (100%)
+    {'move.power.medium', 'player.type.electric'}
+      → damage.high: 1/1 (100%)
+    {'move.stab', 'move.type.electric'}
+      → damage.high: 1/1 (100%)
+    {'move.stab', 'player.type.electric'}
+      → damage.high: 1/1 (100%)
+    {'move.type.electric', 'player.type.electric'}
+      → damage.high: 1/1 (100%)
+  Total patterns stored: 41
+
+──────────────────────────────────────────────────────────────────────
+OBSERVATION 6
+──────────────────────────────────────────────────────────────────────
+
+[RAW STATE]
+  Player: type=electric, ATK=70
+  Enemy:  type=ground, DEF=60
+  Move:   type=electric, power=strong (90)
+
+[DAMAGE CALCULATION]
+  Base power: 90
+  Type mult:  0.0x (immune)
+  STAB mult:  1.5x (same type)
+  Formula:    (90 × 70 / 60) × 0.0 × 1.5 / 3
+  Result:     0 HP → bucket: none
+
+[ABSTRACTION: Raw → Tokens]
+  player_type=electric → player.type.electric
+  enemy_type=ground → enemy.type.ground
+  move_type=electric → move.type.electric
+  power=strong → move.power.strong
+
+  [DERIVED TOKENS]
+  electric vs ground = 0.0x → matchup.immune
+  move_type == player_type → move.stab
+
+[FINAL TOKEN SET] (6 tokens)
+  • enemy.type.ground
+  • matchup.immune
+  • move.power.strong
+  • move.stab
+  • move.type.electric
+  • player.type.electric
+
+[PATTERN STORAGE]
+
+  Storing patterns for effect: damage.none
+    {'enemy.type.ground'}
+      → damage.none: 1/1 (100%)
+    {'matchup.immune'}
+      → damage.none: 1/1 (100%)
+    {'move.power.strong'}
+      → damage.none: 1/4 (25%)
+    {'move.stab'}
+      → damage.none: 1/6 (17%)
+    {'move.type.electric'}
+      → damage.none: 1/2 (50%)
+    {'player.type.electric'}
+      → damage.none: 1/2 (50%)
+    {'enemy.type.ground', 'matchup.immune'}
+      → damage.none: 1/1 (100%)
+    {'enemy.type.ground', 'move.power.strong'}
+      → damage.none: 1/1 (100%)
+    {'move.stab', 'enemy.type.ground'}
+      → damage.none: 1/1 (100%)
+    {'enemy.type.ground', 'move.type.electric'}
+      → damage.none: 1/1 (100%)
+    {'enemy.type.ground', 'player.type.electric'}
+      → damage.none: 1/1 (100%)
+    {'matchup.immune', 'move.power.strong'}
+      → damage.none: 1/1 (100%)
+    {'move.stab', 'matchup.immune'}
+      → damage.none: 1/1 (100%)
+    {'move.type.electric', 'matchup.immune'}
+      → damage.none: 1/1 (100%)
+    {'matchup.immune', 'player.type.electric'}
+      → damage.none: 1/1 (100%)
+    {'move.stab', 'move.power.strong'}
+      → damage.none: 1/4 (25%)
+    {'move.type.electric', 'move.power.strong'}
+      → damage.none: 1/1 (100%)
+    {'move.power.strong', 'player.type.electric'}
+      → damage.none: 1/1 (100%)
+    {'move.stab', 'move.type.electric'}
+      → damage.none: 1/2 (50%)
+    {'move.stab', 'player.type.electric'}
+      → damage.none: 1/2 (50%)
+    {'move.type.electric', 'player.type.electric'}
+      → damage.none: 1/2 (50%)
+  Total patterns stored: 41
+
+
+======================================================================
+PHASE 2: RULE EXTRACTION
+======================================================================
+
+Extracting rules with min_support=2, min_confidence=70%...
+
+Total rules extracted: 2
+
+damage.massive:
+  {'move.stab', 'matchup.super_effective', 'move.power.strong'}
+    → 100% (2/2 observations)
+  {'matchup.super_effective', 'move.power.strong'}
+    → 100% (2/2 observations)
+
+
+======================================================================
+PHASE 3: PREDICTION ON NEW DATA
+======================================================================
+
+──────────────────────────────────────────────────────────────────────
+TEST: ICE vs GRASS (ice type NEVER in training!)
+──────────────────────────────────────────────────────────────────────
+
+[RAW STATE]
+  Player: type=ice, ATK=75
+  Enemy:  type=grass, DEF=50
+  Move:   type=ice, power=strong
+
+[ACTUAL DAMAGE (for verification)]
+  135 HP → massive
+
+[ABSTRACTION]
+  player_type=ice → player.type.ice ← NEVER SEEN!
+  enemy_type=grass → enemy.type.grass 
+  move_type=ice → move.type.ice ← NEVER SEEN!
+  power=strong → move.power.strong 
+
+  [DERIVED]
+  ice vs grass = 2.0x → matchup.super_effective
+  move_type == player_type → move.stab
+
+[TOKEN SET FOR PREDICTION]
+  • enemy.type.grass
+  • matchup.super_effective
+  • move.power.strong
+  • move.stab
+  • move.type.ice ← NEVER SEEN!
+  • player.type.ice ← NEVER SEEN!
+
+[RULE MATCHING]
+
+  Checking which rules fire...
+  Input tokens: 6
+
+  ✓ RULE FIRES:
+    Pattern: {'matchup.super_effective', 'move.power.strong'}
+    Effect:  damage.massive
+    Confidence: 100% (2 observations)
+
+  ✓ RULE FIRES:
+    Pattern: {'move.stab', 'matchup.super_effective', 'move.power.strong'}
+    Effect:  damage.massive
+    Confidence: 100% (2 observations)
+
+  Rules checked: 182
+  Rules fired: 2
+
+[FINAL PREDICTION]
+  Best matching rule:
+    Pattern: {'move.stab', 'matchup.super_effective', 'move.power.strong'}
+    Effect:  damage.massive
+    Confidence: 100%
+
+  Predicted bucket: massive
+  Actual bucket:    massive
+  Match: ✓ CORRECT!

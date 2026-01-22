@@ -1,0 +1,745 @@
+G:\LOKI\LOCUS\SIGNUM\resonance\c4_windows_package\c4_windows_package>python chess_lightning.py
+✓ Syzygy loaded from ./syzygy
+
+Generating random KQRRvKQRR starting positions...
+Added starting position (hash=5252532282905053395)
+  Turn: White
+  +-----------------+
+8 | . . . . . . . . |
+7 | . . . . . . . . |
+6 | . . . . k . . . |
+5 | . . R . . . . r |
+4 | Q . K . . . . . |
+3 | . . . . . . . . |
+2 | R . . . . . . . |
+1 | . . q . . r . . |
+  +-----------------+
+    a b c d e f g h
+Added starting position (hash=-1785836933562721200)
+  Turn: White
+  +-----------------+
+8 | . . . . . . . . |
+7 | Q K . . . . . . |
+6 | R R . . . . . . |
+5 | . . . . . . . . |
+4 | . . . . . . . . |
+3 | . . . . . . . . |
+2 | . . . . k . . . |
+1 | . q . . r . . r |
+  +-----------------+
+    a b c d e f g h
+Added starting position (hash=-7294432955053668864)
+  Turn: White
+  +-----------------+
+8 | . . . . r . . . |
+7 | . R . . . . . . |
+6 | . . . . . . . . |
+5 | . . . . . . . k |
+4 | . . . . . . . . |
+3 | . . q . . K . . |
+2 | . . Q . . . . . |
+1 | . R . . . . r . |
+  +-----------------+
+    a b c d e f g h
+
+Starting with 50 positions
+============================================================
+⚡ 8-PIECE LIGHTNING SOLVER ⚡
+============================================================
+
+--- DEPTH 0 ---
+  Frontier: 50
+
+  ⚡ FIRST CONTACT! Lightning strikes at 7-piece boundary
+  Expanded: 50, Terminals: 0
+  New states: 892, Captures→7: 56, Contacts: 10
+    Propagation iter 0: +7, total solved: 17
+  Propagated: 7
+  Total solved: 17 / 942
+  Time: 0.0s, Rate: 32158 pos/s
+
+  🎉 2 starting positions solved!
+
+--- DEPTH 1 ---
+  Frontier: 892
+  Expanded: 892, Terminals: 4
+  New states: 30,331, Captures→7: 1,311, Contacts: 345
+    Propagation iter 0: +195, total solved: 561
+  Propagated: 196
+  Total solved: 562 / 31,273
+  Time: 0.5s, Rate: 65229 pos/s
+
+  🎉 1 starting positions solved!
+
+--- DEPTH 2 ---
+  Frontier: 30,331
+    10,000/30,331 (33%) - 1714 pos/s - contacts: 3377
+    20,000/30,331 (66%) - 1676 pos/s - contacts: 6396
+    30,000/30,331 (99%) - 1628 pos/s - contacts: 11518
+  Expanded: 30,331, Terminals: 130
+  New states: 668,688, Captures→7: 49,775, Contacts: 11,638
+    Propagation iter 0: +6395, total solved: 16,983
+  Propagated: 6,409
+  Total solved: 16,997 / 699,961
+  Time: 19.4s, Rate: 36110 pos/s
+
+  🎉 1 starting positions solved!
+
+--- DEPTH 3 ---
+  Frontier: 668,688
+    10,000/200,000 (5%) - 1494 pos/s - contacts: 5512
+    20,000/200,000 (10%) - 1886 pos/s - contacts: 8509
+    30,000/200,000 (15%) - 1784 pos/s - contacts: 11846
+    40,000/200,000 (20%) - 1691 pos/s - contacts: 13389
+    50,000/200,000 (25%) - 1770 pos/s - contacts: 16214
+    60,000/200,000 (30%) - 1727 pos/s - contacts: 19761
+    70,000/200,000 (35%) - 1784 pos/s - contacts: 23782
+    80,000/200,000 (40%) - 1691 pos/s - contacts: 27373
+    90,000/200,000 (45%) - 1734 pos/s - contacts: 30981
+    100,000/200,000 (50%) - 1759 pos/s - contacts: 35735
+    110,000/200,000 (55%) - 1693 pos/s - contacts: 39929
+    120,000/200,000 (60%) - 1720 pos/s - contacts: 42695
+    130,000/200,000 (65%) - 1756 pos/s - contacts: 44705
+    140,000/200,000 (70%) - 1783 pos/s - contacts: 48295
+    150,000/200,000 (75%) - 1697 pos/s - contacts: 54658
+    160,000/200,000 (80%) - 1733 pos/s - contacts: 56650
+    170,000/200,000 (85%) - 1732 pos/s - contacts: 67513
+    180,000/200,000 (90%) - 1731 pos/s - contacts: 80014
+    190,000/200,000 (95%) - 1752 pos/s - contacts: 85954
+  Expanded: 200,000, Terminals: 530
+  New states: 3,459,711, Captures→7: 313,813, Contacts: 87,831
+    Propagation iter 0: +42218, total solved: 129,466
+  Propagated: 42,399
+  Total solved: 129,647 / 4,159,672
+  Time: 134.9s, Rate: 30833 pos/s
+
+  🎉 3 starting positions solved!
+
+--- DEPTH 4 ---
+  Frontier: 3,928,399
+    10,000/200,000 (5%) - 2299 pos/s - contacts: 2954
+    20,000/200,000 (10%) - 2399 pos/s - contacts: 6034
+    30,000/200,000 (15%) - 2301 pos/s - contacts: 13391
+    40,000/200,000 (20%) - 1623 pos/s - contacts: 18372
+    50,000/200,000 (25%) - 1731 pos/s - contacts: 19720
+    60,000/200,000 (30%) - 1803 pos/s - contacts: 21760
+    70,000/200,000 (35%) - 1875 pos/s - contacts: 25343
+    80,000/200,000 (40%) - 1877 pos/s - contacts: 31787
+    90,000/200,000 (45%) - 1606 pos/s - contacts: 39038
+    100,000/200,000 (50%) - 1469 pos/s - contacts: 42701
+    110,000/200,000 (55%) - 1514 pos/s - contacts: 45447
+    120,000/200,000 (60%) - 1554 pos/s - contacts: 48234
+    130,000/200,000 (65%) - 1600 pos/s - contacts: 50216
+    140,000/200,000 (70%) - 1629 pos/s - contacts: 54672
+    150,000/200,000 (75%) - 1646 pos/s - contacts: 59604
+    160,000/200,000 (80%) - 1670 pos/s - contacts: 64807
+    170,000/200,000 (85%) - 1670 pos/s - contacts: 70532
+    180,000/200,000 (90%) - 1526 pos/s - contacts: 73366
+    190,000/200,000 (95%) - 1548 pos/s - contacts: 76208
+  Expanded: 200,000, Terminals: 1,600
+  New states: 3,496,546, Captures→7: 305,650, Contacts: 78,462
+    Propagation iter 0: +43204, total solved: 235,503
+  Propagated: 43,395
+  Total solved: 235,694 / 7,656,218
+  Time: 275.3s, Rate: 27814 pos/s
+
+  🎉 5 starting positions solved!
+
+--- DEPTH 5 ---
+  Frontier: 7,224,945
+    10,000/200,000 (5%) - 1886 pos/s - contacts: 4790
+    20,000/200,000 (10%) - 890 pos/s - contacts: 8223
+    30,000/200,000 (15%) - 1070 pos/s - contacts: 11793
+    40,000/200,000 (20%) - 1212 pos/s - contacts: 14220
+    50,000/200,000 (25%) - 1311 pos/s - contacts: 16413
+    60,000/200,000 (30%) - 1400 pos/s - contacts: 19099
+    70,000/200,000 (35%) - 1453 pos/s - contacts: 22004
+    80,000/200,000 (40%) - 1499 pos/s - contacts: 24464
+    90,000/200,000 (45%) - 1553 pos/s - contacts: 26391
+    100,000/200,000 (50%) - 1600 pos/s - contacts: 28414
+    110,000/200,000 (55%) - 1630 pos/s - contacts: 36171
+    120,000/200,000 (60%) - 1658 pos/s - contacts: 42536
+    130,000/200,000 (65%) - 1414 pos/s - contacts: 47704
+    140,000/200,000 (70%) - 1422 pos/s - contacts: 53598
+    150,000/200,000 (75%) - 1440 pos/s - contacts: 58044
+    160,000/200,000 (80%) - 1461 pos/s - contacts: 63356
+    170,000/200,000 (85%) - 1488 pos/s - contacts: 66730
+    180,000/200,000 (90%) - 1500 pos/s - contacts: 69478
+    190,000/200,000 (95%) - 1517 pos/s - contacts: 71711
+  Expanded: 200,000, Terminals: 230
+  New states: 3,588,989, Captures→7: 312,139, Contacts: 73,514
+    Propagation iter 0: +36332, total solved: 331,172
+  Propagated: 36,516
+  Total solved: 331,356 / 11,245,207
+  Time: 418.8s, Rate: 26854 pos/s
+
+  🎉 7 starting positions solved!
+
+--- DEPTH 6 ---
+  Frontier: 10,613,934
+    10,000/200,000 (5%) - 2286 pos/s - contacts: 3083
+    20,000/200,000 (10%) - 2052 pos/s - contacts: 9101
+    30,000/200,000 (15%) - 2064 pos/s - contacts: 13971
+    40,000/200,000 (20%) - 2068 pos/s - contacts: 16940
+    50,000/200,000 (25%) - 2074 pos/s - contacts: 19842
+    60,000/200,000 (30%) - 2074 pos/s - contacts: 24839
+    70,000/200,000 (35%) - 2098 pos/s - contacts: 28125
+    80,000/200,000 (40%) - 2097 pos/s - contacts: 31744
+    90,000/200,000 (45%) - 2111 pos/s - contacts: 34365
+    100,000/200,000 (50%) - 2148 pos/s - contacts: 36635
+    110,000/200,000 (55%) - 2142 pos/s - contacts: 39809
+
+
+
+
+
+
+
+
+
+
+
+
+
+G:\LOKI\LOCUS\SIGNUM\resonance\c4_windows_package\c4_windows_package>python chess_lightning_start.py
+✓ Syzygy loaded from ./syzygy
+
+============================================================
+⚡ 8-PIECE CHESS ENDGAME SOLVER - OVERNIGHT RUN ⚡
+KQRRvKQRR - Lightning from canonical start
+============================================================
+
+★ CANONICAL 8-PIECE STARTING POSITION ★
+  Turn: White
+  +-----------------+
+8 | r . . q k . . r |
+7 | . . . . . . . . |
+6 | . . . . . . . . |
+5 | . . . . . . . . |
+4 | . . . . . . . . |
+3 | . . . . . . . . |
+2 | . . . . . . . . |
+1 | R . . Q K . . R |
+  +-----------------+
+    a b c d e f g h
+Added starting position (hash=3167382070665952508)
+  Turn: White
+  +-----------------+
+8 | r . . q k . . r |
+7 | . . . . . . . . |
+6 | . . . . . . . . |
+5 | . . . . . . . . |
+4 | . . . . . . . . |
+3 | . . . . . . . . |
+2 | . . . . . . . . |
+1 | R . . Q K . . R |
+  +-----------------+
+    a b c d e f g h
+
+Generating 999 random positions for exploration breadth...
+  Generated 200...
+  Generated 400...
+  Generated 600...
+  Generated 800...
+
+Starting with 1000 positions
+Running overnight - will report if canonical position gets solved!
+
+============================================================
+⚡ 8-PIECE LIGHTNING SOLVER ⚡
+============================================================
+
+--- DEPTH 0 ---
+  Frontier: 1,000
+
+  ⚡ FIRST CONTACT! Lightning strikes at 7-piece boundary
+  Expanded: 1,000, Terminals: 15
+  New states: 20,725, Captures→7: 1,429, Contacts: 259
+    Propagation iter 0: +151, total solved: 425
+  Propagated: 151
+  Total solved: 425 / 21,725
+  Time: 0.5s, Rate: 42379 pos/s
+
+  🎉 1 starting positions solved!
+
+--- DEPTH 1 ---
+  Frontier: 20,725
+    10,000/20,725 (48%) - 1343 pos/s - contacts: 4380
+    20,000/20,725 (97%) - 1330 pos/s - contacts: 8218
+  Expanded: 20,725, Terminals: 77
+  New states: 707,591, Captures→7: 39,761, Contacts: 8,526
+    Propagation iter 0: +4130, total solved: 13,152
+  Propagated: 4,157
+  Total solved: 13,179 / 729,316
+  Time: 16.1s, Rate: 45200 pos/s
+
+  🎉 1 starting positions solved!
+
+--- DEPTH 2 ---
+  Frontier: 707,591
+    10,000/707,591 (1%) - 1528 pos/s - contacts: 6276
+    20,000/707,591 (3%) - 1755 pos/s - contacts: 10050
+    30,000/707,591 (4%) - 1667 pos/s - contacts: 13668
+    40,000/707,591 (6%) - 1587 pos/s - contacts: 18049
+    50,000/707,591 (7%) - 1626 pos/s - contacts: 23599
+    60,000/707,591 (8%) - 1548 pos/s - contacts: 27187
+    70,000/707,591 (10%) - 1597 pos/s - contacts: 33292
+    80,000/707,591 (11%) - 1536 pos/s - contacts: 37542
+    90,000/707,591 (13%) - 1563 pos/s - contacts: 42097
+    100,000/707,591 (14%) - 1589 pos/s - contacts: 46212
+    110,000/707,591 (16%) - 1521 pos/s - contacts: 50898
+    120,000/707,591 (17%) - 1544 pos/s - contacts: 55460
+    130,000/707,591 (18%) - 1571 pos/s - contacts: 60144
+    140,000/707,591 (20%) - 1590 pos/s - contacts: 64845
+    150,000/707,591 (21%) - 1532 pos/s - contacts: 68658
+    160,000/707,591 (23%) - 1555 pos/s - contacts: 72926
+    170,000/707,591 (24%) - 1572 pos/s - contacts: 76731
+    180,000/707,591 (25%) - 1584 pos/s - contacts: 81041
+    190,000/707,591 (27%) - 1517 pos/s - contacts: 84500
+    200,000/707,591 (28%) - 1531 pos/s - contacts: 88734
+    210,000/707,591 (30%) - 1545 pos/s - contacts: 94611
+    220,000/707,591 (31%) - 1558 pos/s - contacts: 98413
+    230,000/707,591 (33%) - 1569 pos/s - contacts: 102044
+    240,000/707,591 (34%) - 1581 pos/s - contacts: 106746
+    250,000/707,591 (35%) - 1514 pos/s - contacts: 110077
+    260,000/707,591 (37%) - 1528 pos/s - contacts: 113400
+    270,000/707,591 (38%) - 1481 pos/s - contacts: 118547
+    280,000/707,591 (40%) - 1489 pos/s - contacts: 122105
+    290,000/707,591 (41%) - 1497 pos/s - contacts: 126473
+    300,000/707,591 (42%) - 1506 pos/s - contacts: 130895
+    310,000/707,591 (44%) - 1515 pos/s - contacts: 135000
+    320,000/707,591 (45%) - 1446 pos/s - contacts: 137956
+    330,000/707,591 (47%) - 1454 pos/s - contacts: 142560
+    340,000/707,591 (48%) - 1459 pos/s - contacts: 146763
+    350,000/707,591 (49%) - 1462 pos/s - contacts: 151064
+    360,000/707,591 (51%) - 1472 pos/s - contacts: 154587
+    370,000/707,591 (52%) - 1480 pos/s - contacts: 158836
+    380,000/707,591 (54%) - 1490 pos/s - contacts: 162844
+    390,000/707,591 (55%) - 1497 pos/s - contacts: 167956
+    400,000/707,591 (57%) - 1504 pos/s - contacts: 173207
+    410,000/707,591 (58%) - 1446 pos/s - contacts: 177028
+    420,000/707,591 (59%) - 1455 pos/s - contacts: 182926
+    430,000/707,591 (61%) - 1463 pos/s - contacts: 186964
+    440,000/707,591 (62%) - 1471 pos/s - contacts: 190356
+    450,000/707,591 (64%) - 1479 pos/s - contacts: 194679
+    460,000/707,591 (65%) - 1487 pos/s - contacts: 197962
+    470,000/707,591 (66%) - 1495 pos/s - contacts: 201985
+    480,000/707,591 (68%) - 1501 pos/s - contacts: 206520
+    490,000/707,591 (69%) - 1507 pos/s - contacts: 211282
+    500,000/707,591 (71%) - 1509 pos/s - contacts: 215339
+    510,000/707,591 (72%) - 1516 pos/s - contacts: 220068
+    520,000/707,591 (73%) - 1455 pos/s - contacts: 224844
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+G:\LOKI\LOCUS\SENSUS\resonance\resonance>python chess_holographic.py --material KQRRvKQRR --positions 1000
+✓ Syzygy loaded from ./syzygy
+
+============================================================
+🔮 HOLOGRAPHIC 8-PIECE SOLVER 🔮
+============================================================
+Material: KQRRvKQRR
+Positions: 1000
+
+Generating 1000 random positions...
+  Turn: White
+  +-----------------+
+8 | . . . . . . . . |
+7 | . . . . . . . . |
+6 | . . . r q . . . |
+5 | . . K r . . . Q |
+4 | . . . R . . R . |
+3 | . . . . . k . . |
+2 | . . . . . . . . |
+1 | . . . . . . . . |
+  +-----------------+
+    a b c d e f g h
+  Turn: White
+  +-----------------+
+8 | . . . . . . . . |
+7 | . . . R . . . . |
+6 | . . . . . . r . |
+5 | . . . . . . . . |
+4 | . . q . . . r . |
+3 | K Q R . . . . . |
+2 | . . . . . . . . |
+1 | . . . . . k . . |
+  +-----------------+
+    a b c d e f g h
+  Turn: White
+  +-----------------+
+8 | . . . . . . . . |
+7 | . . k . . . . . |
+6 | Q . . . . . . . |
+5 | q . . K . . R . |
+4 | . . . . . . . . |
+3 | . . . . . . . . |
+2 | . . . . r . . . |
+1 | . . . . R . . r |
+  +-----------------+
+    a b c d e f g h
+  Generated 200...
+  Generated 400...
+  Generated 600...
+  Generated 800...
+  Generated 1000...
+
+Starting with 1000 positions
+============================================================
+🔮 HOLOGRAPHIC CHESS SOLVER 🔮
+Phase 1: Lightning → Find boundary contacts
+Phase 2: Crystallization → Grow from spine
+============================================================
+
+==================================================
+⚡ PHASE 1: LIGHTNING
+==================================================
+
+--- Depth 0 ---
+  Frontier: 1,000
+
+  ⚡ FIRST CONTACT! Lightning strikes!
+  Expanded: 1,000, New: 18,841, Contacts: 253
+    Crystal iter 0: +129, total: 406
+  Propagated: 129, Solved: 406
+
+  🎉 153/1000 starting positions solved!
+  Time: 1s, Rate: 30462 pos/s
+
+--- Depth 1 ---
+  Frontier: 18,841
+
+  ⚡ FIRST CONTACT! Lightning strikes!
+  Expanded: 18,841, New: 645,770, Contacts: 8,367
+    Crystal iter 0: +4,185, total: 13,019
+  Propagated: 4,210, Solved: 13,044
+
+  🎉 213/1000 starting positions solved!
+  Time: 16s, Rate: 42453 pos/s
+
+--- Depth 2 ---
+  Frontier: 645,770
+
+  ⚡ FIRST CONTACT! Lightning strikes!
+    50,000/500,000 - contacts: 19,732
+    100,000/500,000 - contacts: 41,957
+    150,000/500,000 - contacts: 60,630
+    200,000/500,000 - contacts: 83,887
+    250,000/500,000 - contacts: 104,984
+    300,000/500,000 - contacts: 125,017
+    350,000/500,000 - contacts: 144,991
+    400,000/500,000 - contacts: 164,222
+    450,000/500,000 - contacts: 189,061
+  Expanded: 500,000, New: 10,719,347, Contacts: 212,622
+    Crystal iter 0: +107,399, total: 300,882
+  Propagated: 107,667, Solved: 301,150
+
+  🎉 290/1000 starting positions solved!
+  Time: 369s, Rate: 30866 pos/s
+
+--- Depth 3 ---
+  Frontier: 10,865,117
+
+  ⚡ FIRST CONTACT! Lightning strikes!
+    50,000/500,000 - contacts: 22,085
+    100,000/500,000 - contacts: 47,974
+    150,000/500,000 - contacts: 68,821
+    200,000/500,000 - contacts: 85,519
+    250,000/500,000 - contacts: 110,732
+    300,000/500,000 - contacts: 130,149
+    350,000/500,000 - contacts: 157,840
+    400,000/500,000 - contacts: 185,612
+    450,000/500,000 - contacts: 213,314
+  Expanded: 500,000, New: 9,750,606, Contacts: 235,104
+    Crystal iter 0: +128,573, total: 621,693
+  Propagated: 129,295, Solved: 622,415
+
+  🎉 313/1000 starting positions solved!
+  Time: 728s, Rate: 29030 pos/s
+
+--- Depth 4 ---
+  Frontier: 20,115,723
+
+  ⚡ FIRST CONTACT! Lightning strikes!
+    50,000/500,000 - contacts: 28,537
+    100,000/500,000 - contacts: 50,490
+    150,000/500,000 - contacts: 75,260
+    200,000/500,000 - contacts: 100,842
+    250,000/500,000 - contacts: 127,786
+    300,000/500,000 - contacts: 144,862
+    350,000/500,000 - contacts: 159,116
+    400,000/500,000 - contacts: 178,263
+    450,000/500,000 - contacts: 203,992
+  Expanded: 500,000, New: 8,914,017, Contacts: 224,121
+    Crystal iter 0: +108,824, total: 910,872
+  Propagated: 109,470, Solved: 911,518
+
+  🎉 318/1000 starting positions solved!
+  [Hologram saved: 911,518 nodes, 560,747 boundary, 0 decision]
+  [Checkpoint: phase=lightning, depth=5, solved=911,518]
+  Time: 1148s, Rate: 26167 pos/s
+
+--- Depth 5 ---
+  Frontier: 28,529,740
+
+  ⚡ FIRST CONTACT! Lightning strikes!
+    50,000/500,000 - contacts: 22,960
+    100,000/500,000 - contacts: 51,376
+    150,000/500,000 - contacts: 72,372
+    200,000/500,000 - contacts: 93,092
+    250,000/500,000 - contacts: 126,185
+    300,000/500,000 - contacts: 162,896
+    350,000/500,000 - contacts: 188,316
+    400,000/500,000 - contacts: 215,853
+    450,000/500,000 - contacts: 241,778
+  Expanded: 500,000, New: 8,932,539, Contacts: 263,001
+    Crystal iter 0: +133,011, total: 1,262,500
+  Propagated: 133,684, Solved: 1,263,173
+
+  🎉 320/1000 starting positions solved!
+  Time: 1569s, Rate: 24844 pos/s
+
+--- Depth 6 ---
+  Frontier: 36,962,279
+
+  ⚡ FIRST CONTACT! Lightning strikes!
+    50,000/500,000 - contacts: 24,137
+    100,000/500,000 - contacts: 43,775
+    150,000/500,000 - contacts: 65,001
+    200,000/500,000 - contacts: 83,730
+    250,000/500,000 - contacts: 103,793
+    300,000/500,000 - contacts: 119,111
+    350,000/500,000 - contacts: 143,367
+    400,000/500,000 - contacts: 169,043
+    450,000/500,000 - contacts: 195,311
+  Expanded: 500,000, New: 9,135,472, Contacts: 220,154
+    Crystal iter 0: +111,415, total: 1,551,194
+  Propagated: 112,428, Solved: 1,552,207
+
+  🎉 322/1000 starting positions solved!
+  Time: 1966s, Rate: 24477 pos/s
+
+--- Depth 7 ---
+  Frontier: 45,597,751
+
+  ⚡ FIRST CONTACT! Lightning strikes!
+    50,000/500,000 - contacts: 19,983
+    100,000/500,000 - contacts: 40,453
+    150,000/500,000 - contacts: 67,111
+    200,000/500,000 - contacts: 83,914
+    250,000/500,000 - contacts: 100,340
+    300,000/500,000 - contacts: 122,871
+    350,000/500,000 - contacts: 147,956
+    400,000/500,000 - contacts: 163,363
+    450,000/500,000 - contacts: 182,300
+  Expanded: 500,000, New: 9,097,909, Contacts: 206,693
+    Crystal iter 0: +98,758, total: 1,814,541
+  Propagated: 99,251, Solved: 1,815,034
+
+  🎉 323/1000 starting positions solved!
+  Time: 2398s, Rate: 23856 pos/s
+
+--- Depth 8 ---
+  Frontier: 54,195,660
+
+  ⚡ FIRST CONTACT! Lightning strikes!
+    50,000/500,000 - contacts: 15,062
+    100,000/500,000 - contacts: 37,873
+    150,000/500,000 - contacts: 51,640
+    200,000/500,000 - contacts: 68,497
+    250,000/500,000 - contacts: 92,906
+    300,000/500,000 - contacts: 116,767
+    350,000/500,000 - contacts: 136,745
+    400,000/500,000 - contacts: 166,155
+    450,000/500,000 - contacts: 197,752
+  Expanded: 500,000, New: 9,113,154, Contacts: 221,812
+    Crystal iter 0: +100,070, total: 2,095,484
+  Propagated: 100,816, Solved: 2,096,230
+
+  🎉 325/1000 starting positions solved!
+  Time: 2821s, Rate: 23512 pos/s
+
+--- Depth 9 ---
+  Frontier: 62,808,814
+
+  ⚡ FIRST CONTACT! Lightning strikes!
+    50,000/500,000 - contacts: 23,513
+    100,000/500,000 - contacts: 44,854
+    150,000/500,000 - contacts: 65,430
+    200,000/500,000 - contacts: 91,196
+    250,000/500,000 - contacts: 109,817
+    300,000/500,000 - contacts: 137,561
+    350,000/500,000 - contacts: 162,474
+    400,000/500,000 - contacts: 184,003
+    450,000/500,000 - contacts: 210,679
+  Expanded: 500,000, New: 9,099,852, Contacts: 232,498
+    Crystal iter 0: +116,045, total: 2,397,609
+  Propagated: 116,851, Solved: 2,398,415
+
+  🎉 326/1000 starting positions solved!
+  [Hologram saved: 2,398,415 nodes, 1,484,614 boundary, 0 decision]
+  [Checkpoint: phase=lightning, depth=10, solved=2,398,415]
+  Time: 3354s, Rate: 22489 pos/s
+
+--- Depth 10 ---
+  Frontier: 71,408,666
+
+  ⚡ FIRST CONTACT! Lightning strikes!
+    50,000/500,000 - contacts: 28,179
+    100,000/500,000 - contacts: 49,054
+    150,000/500,000 - contacts: 69,661
+    200,000/500,000 - contacts: 97,467
+    250,000/500,000 - contacts: 113,184
+    300,000/500,000 - contacts: 132,026
+    350,000/500,000 - contacts: 153,432
+    400,000/500,000 - contacts: 173,919
+    450,000/500,000 - contacts: 187,048
+  Expanded: 500,000, New: 8,776,845, Contacts: 204,276
+    Crystal iter 0: +102,999, total: 2,667,057
+  Propagated: 103,940, Solved: 2,667,998
+
+  🎉 330/1000 starting positions solved!
+  Time: 3814s, Rate: 22075 pos/s
+
+--- Depth 11 ---
+  Frontier: 79,685,511
+
+  ⚡ FIRST CONTACT! Lightning strikes!
+    50,000/500,000 - contacts: 17,544
+    100,000/500,000 - contacts: 36,527
+    150,000/500,000 - contacts: 60,550
+    200,000/500,000 - contacts: 87,401
+    250,000/500,000 - contacts: 100,948
+    300,000/500,000 - contacts: 118,557
+    350,000/500,000 - contacts: 135,074
+    400,000/500,000 - contacts: 154,799
+    450,000/500,000 - contacts: 178,464
+  Expanded: 500,000, New: 9,252,742, Contacts: 195,424
+    Crystal iter 0: +100,417, total: 2,923,789
+  Propagated: 101,306, Solved: 2,924,678
+
+  🎉 331/1000 starting positions solved!
+  Time: 4327s, Rate: 21601 pos/s
+
+--- Depth 12 ---
+  Frontier: 88,438,253
+
+  ⚡ FIRST CONTACT! Lightning strikes!
+    50,000/500,000 - contacts: 23,928
+    100,000/500,000 - contacts: 47,342
+    150,000/500,000 - contacts: 65,535
+    200,000/500,000 - contacts: 85,669
+    250,000/500,000 - contacts: 100,011
+    300,000/500,000 - contacts: 114,378
+    350,000/500,000 - contacts: 140,076
+    400,000/500,000 - contacts: 160,006
+    450,000/500,000 - contacts: 182,211
+  Expanded: 500,000, New: 9,140,012, Contacts: 203,499
+    Crystal iter 0: +97,873, total: 3,183,250
+  Propagated: 98,774, Solved: 3,184,151
+
+  🎉 333/1000 starting positions solved!
+  Time: 4824s, Rate: 21268 pos/s
+
+--- Depth 13 ---
+  Frontier: 97,078,265
+
+  ⚡ FIRST CONTACT! Lightning strikes!
+    50,000/500,000 - contacts: 20,989
+    100,000/500,000 - contacts: 43,235
+    150,000/500,000 - contacts: 64,156
+    200,000/500,000 - contacts: 90,623
+    250,000/500,000 - contacts: 109,867
+    300,000/500,000 - contacts: 133,620
+    350,000/500,000 - contacts: 154,188
+    400,000/500,000 - contacts: 171,744
+    450,000/500,000 - contacts: 197,925
+  Expanded: 500,000, New: 9,357,124, Contacts: 216,859
+    Crystal iter 0: +110,196, total: 3,464,651
+  Propagated: 110,931, Solved: 3,465,386
+
+  🎉 335/1000 starting positions solved!
+  Time: 5463s, Rate: 20494 pos/s
+
+--- Depth 14 ---
+  Frontier: 105,935,389
+
+  ⚡ FIRST CONTACT! Lightning strikes!
+    50,000/500,000 - contacts: 17,054
+    100,000/500,000 - contacts: 34,090
+    150,000/500,000 - contacts: 53,092
+    200,000/500,000 - contacts: 78,225
+    250,000/500,000 - contacts: 105,150
+    300,000/500,000 - contacts: 128,179
+    350,000/500,000 - contacts: 152,603
+    400,000/500,000 - contacts: 179,895
+    450,000/500,000 - contacts: 213,696
+  Expanded: 500,000, New: 9,117,750, Contacts: 238,147
+    Crystal iter 0: +111,489, total: 3,769,047
+  Propagated: 112,043, Solved: 3,769,601
+
+  🎉 337/1000 starting positions solved!
+  [Hologram saved: 3,769,601 nodes, 2,328,806 boundary, 0 decision]
+  [Checkpoint: phase=lightning, depth=15, solved=3,769,601]
+  Time: 7687s, Rate: 15750 pos/s
+
+--- Depth 15 ---
+  Frontier: 114,553,139
+
+  ⚡ FIRST CONTACT! Lightning strikes!
+    50,000/500,000 - contacts: 16,321
+    100,000/500,000 - contacts: 41,166
+    150,000/500,000 - contacts: 59,307
+    200,000/500,000 - contacts: 78,324
+    250,000/500,000 - contacts: 99,543
+    300,000/500,000 - contacts: 134,119
+    350,000/500,000 - contacts: 154,071
+    400,000/500,000 - contacts: 170,793
+    450,000/500,000 - contacts: 199,051
+  Expanded: 500,000, New: 9,178,930, Contacts: 212,994
+    Crystal iter 0: +96,387, total: 4,036,632
+  Propagated: 97,229, Solved: 4,037,474
+
+  🎉 342/1000 starting positions solved!
+  Time: 10983s, Rate: 11860 pos/s
+
+--- Depth 16 ---
+  Frontier: 123,232,069
+
+  ⚡ FIRST CONTACT! Lightning strikes!
+    50,000/500,000 - contacts: 20,752
+    100,000/500,000 - contacts: 37,134
+    150,000/500,000 - contacts: 46,166
+    200,000/500,000 - contacts: 60,613
+    250,000/500,000 - contacts: 81,645
+
+
+
+OVERFLOWED MEMORY HERE!  Either gotta cap memory and do in mem-capped batches, or just declare a certain depth is fair enough and pursue other starting point using the previous runs as "solid" waveguides which can be abstracted away as "solved". 
