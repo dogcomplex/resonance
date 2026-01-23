@@ -1,4 +1,5 @@
 *.pkl
+*.pkl.*
 *.rtbz
 *.rtbw
 *.emd
