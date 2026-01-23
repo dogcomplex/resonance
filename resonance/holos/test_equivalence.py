@@ -16,7 +16,7 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from holos.core import HOLOSSolver, SeedPoint, SearchMode, LightningProbe
+from holos.holos import HOLOSSolver, SeedPoint, SearchMode, LightningProbe
 from holos.storage import Hologram, SpinePath, SeedFrontierMapping
 from holos.games.chess import (
     ChessGame, ChessState, ChessValue,

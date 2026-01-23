@@ -12,7 +12,7 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from holos.core import HOLOSSolver, SeedPoint, SearchMode
+from holos.holos import HOLOSSolver, SeedPoint, SearchMode
 from holos.storage import Hologram, SpinePath, SeedFrontierMapping
 from holos.session import SessionManager, create_session
 from holos.games.chess import (
@@ -80,7 +80,7 @@ def demo_bidirectional_lightning():
     pos.display()
 
     # Forward lightning (toward boundary)
-    from holos.core import LightningProbe
+    from holos.holos import LightningProbe
 
     forward_probe = LightningProbe(game, {}, direction="forward", max_depth=10)
     value, path = forward_probe.probe(pos)

@@ -217,7 +217,7 @@ class SessionManager:
         Returns:
             RoundStats for this round
         """
-        from .core import SeedPoint, SearchMode
+        from .holos import SeedPoint, SearchMode
 
         # Create round stats
         round_stats = RoundStats(
@@ -290,7 +290,7 @@ class SessionManager:
 
         This is a Layer 1 decision informed by Layer 2 data.
         """
-        from .core import SeedPoint, SearchMode
+        from .holos import SeedPoint, SearchMode
 
         seeds = []
 
@@ -375,7 +375,7 @@ class SessionManager:
 
     def get_mode_for_phase(self) -> 'SearchMode':
         """Get search mode based on current phase"""
-        from .core import SearchMode
+        from .holos import SearchMode
 
         phase_modes = {
             SessionPhase.INIT: SearchMode.LIGHTNING,
@@ -454,7 +454,7 @@ def create_session(session_id: str, game_name: str,
 def quick_solve(solver, seeds: List[Any],
                 max_iterations: int = 100) -> Hologram:
     """Quick solve without session management"""
-    from .core import SeedPoint, SearchMode
+    from .holos import SeedPoint, SearchMode
 
     seed_points = [SeedPoint(s, SearchMode.WAVE) for s in seeds]
     return solver.solve(seed_points, max_iterations=max_iterations)

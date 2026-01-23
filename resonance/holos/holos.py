@@ -1,5 +1,5 @@
 """
-holos/core.py - Universal HOLOS Algorithm
+holos/holos.py - Universal HOLOS Algorithm (THE ENGINE)
 
 This module contains the game-agnostic HOLOS solver. It implements:
 - GameInterface: Abstract base class for any game/lattice
@@ -12,6 +12,11 @@ The key insight: Forward and Backward are MIRRORS.
 - Backward lightning: DFS from boundary toward start (using predecessors)
 
 Both use the same algorithm, just with different direction functions.
+
+This is THE ENGINE that all layers use:
+- Layer 0 (chess.py): HOLOSSolver(ChessGame) searches chess positions
+- Layer 1 (seeds.py): HOLOSSolver(SeedGame) searches seed configurations
+- Layer 2 (strategy.py): HOLOSSolver(StrategyGame) searches goal allocations
 
 CONSISTENCY NOTE: This module is designed to be functionally equivalent to
 fractal_holos3.py's BidirectionalHOLOS class, but game-agnostic.
@@ -49,6 +54,34 @@ class SeedPoint(Generic[S]):
         return hash((id(self.state), self.mode, self.priority, self.depth))
 
 
+@dataclass
+class GoalCondition:
+    """
+    Defines what counts as 'success' for a targeted search.
+
+    This is a Layer 1/2 concept - the STRATEGY of what to search for.
+    Layer 0 (game) provides the capabilities, Layer 1/2 decides the goals.
+
+    Attributes:
+        target_signatures: Set of state signatures that count as goal states.
+                          For chess, this might be material strings like {'KQRRvKQR'}.
+        early_terminate_misses: If True, stop expanding paths that can't reach goals.
+        name: Human-readable name for this goal condition.
+
+    The game must implement get_signature(state) for this to work.
+    """
+    target_signatures: Set[str]
+    early_terminate_misses: bool = True
+    name: str = "unnamed_goal"
+
+    def matches(self, signature: str) -> bool:
+        """Check if a state signature matches this goal"""
+        return signature in self.target_signatures
+
+    def __hash__(self):
+        return hash((frozenset(self.target_signatures), self.early_terminate_misses, self.name))
+
+
 class GameInterface(ABC, Generic[S, V]):
     """
     Abstract interface for any game that HOLOS can solve.
@@ -82,6 +115,19 @@ class GameInterface(ABC, Generic[S, V]):
     def is_boundary(self, state: S) -> bool:
         """Is this state on the boundary (has known value)?"""
         pass
+
+    def get_signature(self, state: S) -> Optional[str]:
+        """
+        Get a signature for goal matching.
+
+        For chess, this returns the material string like 'KQRRvKQR'.
+        For other games, it could be any string that identifies a state category.
+
+        Returns None if signatures are not supported.
+
+        This is used by Layer 1/2 goal conditions to filter states.
+        """
+        return None  # Default: no signature support
 
     @abstractmethod
     def get_boundary_value(self, state: S) -> Optional[V]:
@@ -240,79 +286,9 @@ class LightningProbe(Generic[S, V]):
 
 
 # ============================================================
-# MODE SELECTION AS META-DECISION
+# NOTE: ModeDecision and ModeSelector moved to games/seeds.py (Layer 1)
+# They are Layer 1 concerns - tactical decisions about HOW to search.
 # ============================================================
-
-@dataclass
-class ModeDecision:
-    """
-    Tracks mode selection decisions for meta-learning.
-
-    The idea: mode selection (lightning vs wave vs crystal) is itself
-    a decision that can be optimized. Track outcomes to learn which
-    mode works best in which situations.
-    """
-    state_hash: int
-    features: Any  # State features at decision point
-    mode_chosen: SearchMode
-    outcome: Optional[V] = None  # Did this mode find a solution?
-    nodes_used: int = 0
-    path_length: int = 0
-    success: bool = False
-
-
-class ModeSelector:
-    """
-    Selects search mode based on state features and history.
-
-    This can be used at Layer 1 or Layer 2 of the meta-game:
-    - Layer 1: Choose mode per seed position
-    - Layer 2: Choose mode allocation strategy
-    """
-
-    def __init__(self):
-        self.history: List[ModeDecision] = []
-        self.feature_outcomes: Dict[Any, Dict[SearchMode, List[bool]]] = defaultdict(
-            lambda: defaultdict(list)
-        )
-
-    def select_mode(self, state: S, game: GameInterface[S, V],
-                    default: SearchMode = SearchMode.WAVE) -> SearchMode:
-        """
-        Select mode based on state features and history.
-
-        Simple strategy:
-        - If features match a pattern with known good mode, use that
-        - Otherwise use default (wave for safety, lightning for speed)
-        """
-        features = game.get_features(state)
-        if features is None:
-            return default
-
-        # Check if we have history for these features
-        if features in self.feature_outcomes:
-            outcomes = self.feature_outcomes[features]
-            best_mode = default
-            best_success_rate = 0.0
-
-            for mode, results in outcomes.items():
-                if results:
-                    rate = sum(results) / len(results)
-                    if rate > best_success_rate:
-                        best_success_rate = rate
-                        best_mode = mode
-
-            return best_mode
-
-        return default
-
-    def record_outcome(self, decision: ModeDecision):
-        """Record the outcome of a mode decision"""
-        self.history.append(decision)
-        if decision.features is not None:
-            self.feature_outcomes[decision.features][decision.mode_chosen].append(
-                decision.success
-            )
 
 
 # ============================================================
@@ -341,10 +317,25 @@ class HOLOSSolver(Generic[S, V]):
     """
 
     def __init__(self, game: GameInterface[S, V], name: str = "holos",
-                 max_memory_mb: int = 4000):
+                 max_memory_mb: int = 4000,
+                 max_frontier_size: int = 2_000_000,
+                 max_backward_depth: int = None):
+        """
+        Initialize HOLOS solver with memory management.
+
+        Args:
+            game: Game interface to solve
+            name: Solver name for logging
+            max_memory_mb: Memory limit in MB (process will stop if exceeded)
+            max_frontier_size: Hard cap on frontier size (prevents memory explosion)
+            max_backward_depth: Limit backward expansion depth (None = unlimited)
+                               For targeted search, use 1-2 to prevent explosion.
+        """
         self.game = game
         self.name = name
         self.max_memory_mb = max_memory_mb
+        self.max_frontier_size = max_frontier_size
+        self.max_backward_depth = max_backward_depth
 
         # State tracking
         self.forward_frontier: Dict[int, S] = {}
@@ -352,6 +343,9 @@ class HOLOSSolver(Generic[S, V]):
         self.forward_seen: Set[int] = set()
         self.backward_seen: Set[int] = set()
         self.solved: Dict[int, V] = {}
+
+        # Depth tracking for backward expansion
+        self.backward_depth: Dict[int, int] = {}  # hash -> depth from boundary
 
         # Parent tracking for path reconstruction
         self.forward_parents: Dict[int, Tuple[int, Any]] = {}
@@ -361,12 +355,13 @@ class HOLOSSolver(Generic[S, V]):
         self.connections: List[Tuple[int, int, V]] = []
         self.spines: List['SpinePath'] = []  # Added for fractal_holos3 compatibility
 
-        # Mode selection
-        self.mode_selector = ModeSelector()
+        # Mode selection moved to Layer 1 (games/seeds.py)
+        # Use ModeSelector from there if needed
 
-        # Equivalence tracking
+        # Equivalence tracking (with size limit per class)
         self.equiv_classes: Dict[Any, Set[int]] = defaultdict(set)
         self.equiv_outcomes: Dict[Any, Optional[V]] = {}
+        self.max_equiv_class_size = 10_000  # Prevent memory explosion
 
         # Stats (matching fractal_holos3.py)
         self.stats = {
@@ -380,7 +375,13 @@ class HOLOSSolver(Generic[S, V]):
             'equiv_tracked': 0,
             'equiv_propagated': 0,
             'minimax_solved': 0,
+            'goal_filtered': 0,  # States filtered by goal condition
+            'frontier_capped': 0,  # Times frontier hit size cap
+            'depth_limited': 0,  # Positions skipped due to depth limit
         }
+
+        # Goal condition for targeted search (set during solve())
+        self.current_goal: Optional[GoalCondition] = None
 
     def memory_mb(self) -> float:
         """Get current memory usage in MB (matches fractal_holos3.py)"""
@@ -391,12 +392,54 @@ class HOLOSSolver(Generic[S, V]):
             # Fallback estimate
             return (len(self.forward_frontier) + len(self.backward_frontier)) * 300 / (1024 * 1024)
 
+    def reset(self):
+        """
+        Reset solver state for a fresh start.
+
+        Use this when you want to solve a new independent problem
+        without creating a new solver instance. For incremental solving
+        across related problems, don't call this - solver state accumulation
+        is intentional.
+        """
+        self.forward_frontier.clear()
+        self.backward_frontier.clear()
+        self.forward_seen.clear()
+        self.backward_seen.clear()
+        self.solved.clear()
+        self.backward_depth.clear()
+        self.forward_parents.clear()
+        self.backward_parents.clear()
+        self.connections.clear()
+        self.spines.clear()
+        self.equiv_classes.clear()
+        self.equiv_outcomes.clear()
+        self.stats = {
+            'lightning_probes': 0,
+            'connections': 0,
+            'crystallized': 0,
+            'spines_found': 0,
+            'forward_expanded': 0,
+            'backward_expanded': 0,
+            'equiv_shortcuts': 0,
+            'equiv_tracked': 0,
+            'equiv_propagated': 0,
+            'minimax_solved': 0,
+            'goal_filtered': 0,
+            'frontier_capped': 0,
+            'depth_limited': 0,
+        }
+
     def solve(self, forward_seeds: List[SeedPoint[S]],
               backward_seeds: List[SeedPoint[S]] = None,
               max_iterations: int = 100,
-              lightning_interval: int = 5) -> 'Hologram':
+              lightning_interval: int = 5,
+              goal: GoalCondition = None) -> 'Hologram':
         """
         Main solve method (matches fractal_holos3.py signature).
+
+        Optional goal parameter enables targeted search:
+        - Only states matching goal.target_signatures count as boundaries
+        - If goal.early_terminate_misses, filter out paths to non-goal states
 
         Args:
             forward_seeds: Starting positions to solve
@@ -409,8 +452,13 @@ class HOLOSSolver(Generic[S, V]):
         """
         from .storage import Hologram, SpinePath
 
+        # Store goal for use in expansion methods
+        self.current_goal = goal
+
         print(f"\n{'='*60}")
         print(f"HOLOS Solver: {self.name}")
+        if goal:
+            print(f"Goal: {goal.name} ({len(goal.target_signatures)} targets)")
         print(f"{'='*60}")
 
         # Initialize forward frontier
@@ -434,6 +482,7 @@ class HOLOSSolver(Generic[S, V]):
                 if h not in self.backward_seen:
                     self.backward_seen.add(h)
                     self.backward_frontier[h] = seed.state
+                    self.backward_depth[h] = 0  # Boundary seeds are depth 0
                     # Get boundary value
                     if self.game.is_boundary(seed.state):
                         value = self.game.get_boundary_value(seed.state)
@@ -449,6 +498,8 @@ class HOLOSSolver(Generic[S, V]):
         print(f"Seeded {seeded_backward} backward positions with boundary values")
         print(f"Forward frontier: {len(self.forward_frontier):,}")
         print(f"Backward frontier: {len(self.backward_frontier):,}")
+        if self.max_backward_depth is not None:
+            print(f"Backward depth limit: {self.max_backward_depth}")
 
         start_time = time.time()
 
@@ -596,12 +647,16 @@ class HOLOSSolver(Generic[S, V]):
                         if sh not in self.solved:
                             self.solved[sh] = value
 
-    def _expand_forward(self) -> int:
+    def _expand_forward(self, max_frontier_size: int = 500000) -> int:
         """Expand forward frontier by one layer (matches fractal_holos3)"""
         if not self.forward_frontier:
             return 0
 
+        # Sample if frontier is too large to prevent memory explosion
         items = list(self.forward_frontier.items())
+        if len(items) > max_frontier_size:
+            items = random.sample(items, max_frontier_size)
+
         next_frontier = {}
         contacts = 0
         equiv_added = 0
@@ -642,6 +697,15 @@ class HOLOSSolver(Generic[S, V]):
 
                 # Check boundary - seed backward wave (like fractal_holos3)
                 if self.game.is_boundary(child):
+                    # Goal filtering: if we have a goal, check if boundary matches
+                    if self.current_goal is not None:
+                        sig = self.game.get_signature(child)
+                        if sig is not None and not self.current_goal.matches(sig):
+                            # Boundary doesn't match goal - early terminate this path
+                            self.stats['goal_filtered'] += 1
+                            if self.current_goal.early_terminate_misses:
+                                continue  # Don't add to frontier or solved
+
                     value = self.game.get_boundary_value(child)
                     if value is not None:
                         self.solved[ch] = value
@@ -676,20 +740,49 @@ class HOLOSSolver(Generic[S, V]):
 
         return contacts
 
-    def _expand_backward(self) -> int:
-        """Expand backward frontier using predecessors (matches fractal_holos3)"""
+    def _expand_backward(self, max_input_size: int = 500_000) -> int:
+        """
+        Expand backward frontier using predecessors.
+
+        Memory safety features:
+        1. Input sampling: If frontier too large, sample
+        2. Output cap: Hard limit on next_frontier size
+        3. Depth limiting: Stop at max_backward_depth
+        4. Equiv class cap: Don't track huge equivalence classes
+        """
         if not self.backward_frontier:
             return 0
 
+        # Sample if frontier is too large to prevent memory explosion
         items = list(self.backward_frontier.items())
+        if len(items) > max_input_size:
+            items = random.sample(items, max_input_size)
+
         next_frontier = {}
         contacts = 0
         equiv_added = 0
+        frontier_capped = False
+        depth_limited_count = 0
 
         # Track pred -> children for minimax (like fractal_holos3)
         pred_children: Dict[int, List[Tuple[int, V]]] = defaultdict(list)
 
         for h, state in items:
+            # Check depth limit - get current depth of this state
+            current_depth = self.backward_depth.get(h, 0)
+
+            # If we've reached depth limit, don't expand further (only if limit is set)
+            if self.max_backward_depth is not None and current_depth >= self.max_backward_depth:
+                depth_limited_count += 1
+                continue
+
+            # Hard cap on output frontier size (only if limit is set)
+            if self.max_frontier_size is not None and len(next_frontier) >= self.max_frontier_size:
+                if not frontier_capped:
+                    frontier_capped = True
+                    self.stats['frontier_capped'] += 1
+                continue  # Stop adding, but continue processing for minimax
+
             # Generate predecessors
             for pred, move in self.game.get_predecessors(state):
                 ph = self.game.hash_state(pred)
@@ -703,11 +796,15 @@ class HOLOSSolver(Generic[S, V]):
 
                 self.backward_seen.add(ph)
 
-                # Track features (like fractal_holos3)
+                # Track depth of predecessor (one more than current)
+                self.backward_depth[ph] = current_depth + 1
+
+                # Track features with size limit
                 features = self.game.get_features(pred)
                 if features is not None:
-                    self.equiv_classes[features].add(ph)
-                    equiv_added += 1
+                    if len(self.equiv_classes[features]) < self.max_equiv_class_size:
+                        self.equiv_classes[features].add(ph)
+                        equiv_added += 1
 
                 # Check if forward wave reached this - CONNECTION!
                 if ph in self.forward_seen:
@@ -715,8 +812,16 @@ class HOLOSSolver(Generic[S, V]):
                     contacts += 1
                     continue
 
-                next_frontier[ph] = pred
-                self.backward_parents[ph] = (h, move)
+                # Only add to frontier if we haven't hit the cap (or no cap set)
+                if self.max_frontier_size is None or len(next_frontier) < self.max_frontier_size:
+                    next_frontier[ph] = pred
+                    self.backward_parents[ph] = (h, move)
+
+        if depth_limited_count > 0:
+            self.stats['depth_limited'] += depth_limited_count
+
+        if frontier_capped and self.max_frontier_size is not None:
+            print(f"  Frontier capped at {self.max_frontier_size:,}")
 
         # Apply minimax to predecessors (like fractal_holos3)
         minimax_solved = 0
@@ -793,6 +898,15 @@ class HOLOSSolver(Generic[S, V]):
                                     self.stats['crystallized'] += 1
 
                 local = next_local
+
+        # Memory cleanup: clear parent tracking when solved count is very large
+        # Parent tracking is only needed for spine reconstruction
+        if len(self.solved) > 5_000_000:
+            cleared_forward = len(self.forward_parents)
+            cleared_backward = len(self.backward_parents)
+            self.forward_parents.clear()
+            self.backward_parents.clear()
+            print(f"  Cleared {cleared_forward + cleared_backward:,} parent links to save memory")
 
     def _propagate(self) -> int:
         """Propagate values through parent links and equivalence (matches fractal_holos3)"""

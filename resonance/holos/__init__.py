@@ -24,10 +24,11 @@ Each layer uses the same bidirectional principle:
 - Meeting: Where waves connect, we have solved paths
 """
 
-from .core import (
+from .holos import (
     GameInterface,
     SearchMode,
     SeedPoint,
+    GoalCondition,
     LightningProbe,
     HOLOSSolver,
 )
@@ -43,14 +44,25 @@ from .session import (
     SessionState,
 )
 
+from .batched_solver import (
+    BatchedSolver,
+    BatchedSolverConfig,
+    solve_batched,
+)
+
 __version__ = "0.1.0"
 __all__ = [
     # Core algorithm
     "GameInterface",
     "SearchMode",
     "SeedPoint",
+    "GoalCondition",
     "LightningProbe",
     "HOLOSSolver",
+    # Batched solving (for large searches)
+    "BatchedSolver",
+    "BatchedSolverConfig",
+    "solve_batched",
     # Storage
     "Hologram",
     "SpinePath",

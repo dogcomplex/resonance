@@ -20,19 +20,19 @@ The modular `holos/` package is a **game-agnostic refactor** of the original `fr
 ```
 holos/                              [ROOT PACKAGE]
 │
-├── __init__.py                     [61 lines]
+├── __init__.py                     [~65 lines]
 │   Purpose: Package exports and documentation
-│   Exports: GameInterface, SearchMode, SeedPoint, LightningProbe,
-│            HOLOSSolver, Hologram, SpinePath, SeedFrontierMapping,
-│            SessionManager, SessionState
+│   Exports: GameInterface, SearchMode, SeedPoint, GoalCondition,
+│            LightningProbe, HOLOSSolver, Hologram, SpinePath,
+│            SeedFrontierMapping, SessionManager, SessionState
 │   Version: 0.1.0
 │
-├── core.py                         [841 lines]
-│   Purpose: Universal HOLOS algorithm (game-agnostic)
-│   Classes: GameInterface, SearchMode, SeedPoint, LightningProbe,
-│            ModeDecision, ModeSelector, HOLOSSolver
+├── holos.py                        [~880 lines] (renamed from core.py)
+│   Purpose: THE ENGINE - Universal HOLOS algorithm (game-agnostic)
+│   Classes: GameInterface, SearchMode, SeedPoint, GoalCondition,
+│            LightningProbe, HOLOSSolver
 │   Key Design: Forward/backward symmetry, bidirectional search,
-│               mode selection as meta-decision
+│               goal-filtered solving. This is used by ALL layers.
 │
 ├── storage.py                      [407 lines]
 │   Purpose: Holographic storage structures
@@ -47,45 +47,55 @@ holos/                              [ROOT PACKAGE]
 │
 ├── demo.py                         [260 lines]
 │   Purpose: Demonstration script showing all features
-│   Functions: demo_chess_solving, demo_bidirectional_lightning,
-│              demo_session_management, demo_seed_game, demo_storage
 │
-├── test_equivalence.py             [332 lines]
-│   Purpose: Verify functional equivalence with fractal_holos3.py
-│   Tests: ChessGame interface, boundary seed generation, solver stats,
-│          memory tracking, spine structure, lightning probe, apply_move
+├── test_*.py                       [Various test files]
+│   Purpose: Verify functional equivalence and correctness
 │
 ├── README.md                       [249 lines]
-│   Purpose: User-facing documentation
-│
 ├── COMPARISON_WITH_FRACTAL_HOLOS3.md [259 lines]
-│   Purpose: Detailed comparison with original implementation
-│
 ├── LOCUS.md                        [THIS FILE]
-│   Purpose: Source of truth for AI context
 │
-└── games/                          [GAME IMPLEMENTATIONS]
+└── games/                          [GAME IMPLEMENTATIONS - All layers]
     │
-    ├── __init__.py                 [42 lines]
+    ├── __init__.py                 [~55 lines]
     │   Purpose: Game module exports
-    │   Exports: ChessGame, ChessValue, ChessState,
-    │            SeedGame, SeedConfiguration, SeedValue, SeedSpec
+    │   Exports: ChessGame, SeedGame, StrategyGame, GoalCondition,
+    │            ModeDecision, ModeSelector, etc.
     │
-    ├── chess.py                    [686 lines]
-    │   Purpose: Layer 0 - Chess endgame implementation
+    ├── chess.py                    [~800 lines] - LAYER 0
+    │   Purpose: Chess endgame implementation (capabilities)
     │   Classes: Piece, ChessState, ChessValue, ChessFeatures,
     │            SyzygyProbe, ChessGame
-    │   Key Design: Syzygy boundary, minimax propagation,
-    │               canonical hashing, predecessor generation
+    │   Functions: get_material_string, get_parent_materials,
+    │              enumerate_material_positions
+    │   Key Design: Provides CAPABILITIES for Layer 1/2 to use
     │
-    └── seeds.py                    [383 lines]
-        Purpose: Layer 1 - Seed selection meta-game
-        Classes: SeedSpec, SeedConfiguration, SeedValue, SeedGame
-        Key Design: Lattice search, efficiency optimization,
-                    configuration space exploration
+    ├── seeds.py                    [~460 lines] - LAYER 1
+    │   Purpose: Seed selection meta-game (tactics)
+    │   Classes: SeedSpec, SeedConfiguration, SeedValue, SeedGame,
+    │            ModeDecision, ModeSelector
+    │   Key Design: Lattice search, efficiency optimization,
+    │               mode selection learning
+    │
+    ├── strategy.py                 [~310 lines] - LAYER 2 (NEW)
+    │   Purpose: Goal/budget allocation meta-game (strategy)
+    │   Classes: GoalCondition, GoalAllocation, StrategyState,
+    │            StrategyValue, StrategyGame
+    │   Key Design: Resource allocation across goals, completeness
+    │               optimization
+    │
+    └── chess_targeted.py           [DEPRECATED - ~350 lines]
+        Note: Use GoalCondition from holos.py instead
+
+holos/
+├── run_targeted_kqrr.py            [~200 lines]
+│   Purpose: In-process batched targeted search
+│
+└── run_targeted_subprocess.py      [~180 lines]
+    Purpose: Subprocess-isolated targeted search (recommended)
 ```
 
-**Total Lines**: ~3,472 (excluding LOCUS.md)
+**Total Lines**: ~4,500 (excluding LOCUS.md)
 
 ---
 
@@ -121,36 +131,90 @@ Mode selection is itself a **meta-decision** that can be optimized (Layer 1/2).
 ### The Layer Architecture
 
 ```
-Layer 2+: Meta-strategy (budget allocation, material priority)
-    ↓ controls
-Layer 1: Seed Selection (which seeds, what depth, which mode)
-    ↓ controls
-Layer 0: Base Game (chess positions, minimax values)
-    ↓ queries
-Boundary: Syzygy Tablebases (7-piece endgames)
+holos.py (THE ENGINE) - Used by ALL layers
+    │
+    ├─→ Layer 2 (strategy.py): Goal/budget allocation
+    │       State = StrategyState (goal allocations)
+    │       Value = StrategyValue (completeness, efficiency)
+    │       HOLOSSolver(StrategyGame) searches strategy space
+    │
+    ├─→ Layer 1 (seeds.py): Seed selection + mode learning
+    │       State = SeedConfiguration (which seeds, depths, modes)
+    │       Value = SeedValue (coverage, cost, efficiency)
+    │       HOLOSSolver(SeedGame) searches seed space
+    │
+    └─→ Layer 0 (chess.py): Chess positions (capabilities)
+            State = ChessState (position)
+            Value = ChessValue (win/lose/draw)
+            HOLOSSolver(ChessGame) searches position space
+            ↓ queries
+        Boundary: Syzygy Tablebases (7-piece endgames)
 ```
 
-Each layer uses HOLOS principles but may use different value propagation.
+**Key Insight**: The SAME algorithm (holos.py) searches DIFFERENT state spaces at each layer.
+- Layer 0 searches POSITIONS
+- Layer 1 searches SEED CONFIGURATIONS
+- Layer 2 searches GOAL ALLOCATIONS
+
+Each layer uses the same bidirectional search, but with different:
+- State types
+- Value propagation
+- Boundary conditions
 
 ---
 
 ## Module Deep Dive
 
-### core.py - The Universal Solver
+### holos.py - THE ENGINE
 
-**Purpose**: Game-agnostic HOLOS algorithm implementation.
+**Purpose**: Game-agnostic HOLOS algorithm. This is the core search engine used by ALL layers.
 
 #### Classes
 
 | Class | Lines | Responsibility |
 |-------|-------|----------------|
-| `GameInterface[S, V]` | 52-140 | Abstract interface any game must implement |
+| `GameInterface[S, V]` | 80-180 | Abstract interface any game must implement |
 | `SearchMode` | 33-38 | Enum: LIGHTNING, WAVE, CRYSTAL |
 | `SeedPoint[S]` | 40-50 | Seed with state, mode, priority, depth |
-| `LightningProbe[S, V]` | 146-239 | Bidirectional DFS to find paths |
-| `ModeDecision` | 247-261 | Tracks single mode decision for learning |
-| `ModeSelector` | 264-316 | Tracks mode success for meta-learning |
-| `HOLOSSolver[S, V]` | 322-842 | Main solver with bidirectional search |
+| `GoalCondition` | 53-78 | Targeting (what counts as success) |
+| `LightningProbe[S, V]` | 187-280 | Bidirectional DFS to find paths |
+| `HOLOSSolver[S, V]` | ~300-880 | Main solver with bidirectional search |
+
+Note: `ModeDecision` and `ModeSelector` moved to `games/seeds.py` (Layer 1 concerns).
+
+#### GoalCondition - Layer 1/2 Targeting
+
+```python
+@dataclass
+class GoalCondition:
+    """Defines what counts as 'success' for a targeted search."""
+    target_signatures: Set[str]  # e.g., {'KQRRvKQR'}
+    early_terminate_misses: bool = True  # Stop paths to non-goals
+    name: str = "unnamed_goal"
+
+    def matches(self, signature: str) -> bool:
+        return signature in self.target_signatures
+```
+
+**Key Architectural Insight**: Targeting is a STRATEGY decision (Layer 1/2), not a game rule (Layer 0).
+
+- **Layer 0 (chess.py)**: Provides CAPABILITIES (material utilities)
+  - `get_material_string(state)` → "KQRRvKQR"
+  - `get_parent_materials("KQRRvKQR")` → ["KQRRvKQRQ", "KQRRvKQRR", ...]
+  - `enumerate_material_positions("KQRRvKQR", syzygy, 100)` → positions
+
+- **Layer 1/2 (GoalCondition)**: Uses capabilities to define GOALS
+  - "Only solve positions reaching KQRRvKQR"
+  - "Early-terminate paths to other 7-piece materials"
+
+- **Solver**: Respects goals during expansion
+  - Checks `game.get_signature(state)` against `goal.target_signatures`
+  - Filters out boundary states that don't match goal
+
+**Why This Separation Matters**:
+1. Results are valid building blocks toward full chess solution
+2. Filtered states are still CORRECT - just not our current target
+3. Can combine partial results from different goal searches later
 
 #### GameInterface Contract
 
@@ -167,6 +231,7 @@ class GameInterface(ABC, Generic[S, V]):
 
     # OPTIONAL METHODS (have defaults)
     def get_features(state: S) -> Any         # Equivalence features (default: None)
+    def get_signature(state: S) -> str        # Goal matching (default: None) **NEW**
     def get_lightning_successors(state: S)    # Captures only (default: get_successors)
     def get_lightning_predecessors(state: S)  # Uncaptures only (default: get_predecessors)
     def score_for_lightning(state: S, move)   # MVV-LVA scoring (default: 0.0)
@@ -174,26 +239,74 @@ class GameInterface(ABC, Generic[S, V]):
     def apply_move(state: S, move: Any) -> S  # For spine reconstruction
 ```
 
+**NEW: `get_signature()` for Goal Matching**
+
+The `get_signature()` method enables Layer 1/2 goal targeting:
+- Returns a string identifying the state's "category"
+- For chess: material string like "KQRRvKQR"
+- Solver checks signatures against `GoalCondition.target_signatures`
+
 **Value propagation is GAME-SPECIFIC**:
 - Chess: minimax (White maximizes, Black minimizes)
 - Optimization: max efficiency
 - Path finding: min cost
 
+#### HOLOSSolver Memory Management (NEW)
+
+**Memory-safe initialization**:
+```python
+solver = HOLOSSolver(
+    game,
+    name="my_solver",
+    max_memory_mb=4000,         # Process memory limit
+    max_frontier_size=2_000_000, # Hard cap on frontier size
+    max_backward_depth=2,        # Limit backward expansion (prevents explosion)
+)
+```
+
+**Key parameters**:
+- `max_memory_mb`: When process memory exceeds 90% of this, solving stops
+- `max_frontier_size`: Hard cap on next_frontier dict size (default 2M)
+- `max_backward_depth`: How many steps backward from boundary (None = unlimited)
+
+**For targeted KQRRvKQR search**:
+- Use `max_backward_depth=1` (only go 7→8 piece, not 7→8→9→...)
+- Use `max_frontier_size=500_000` to keep memory bounded
+
 #### HOLOSSolver Algorithm
 
 ```python
-def solve(forward_seeds, backward_seeds=None, max_iterations=100, lightning_interval=5):
-    # 1. Initialize frontiers from seeds
-    # 2. Auto-generate backward seeds if not provided (via game.generate_boundary_seeds)
-    # 3. For each iteration:
-    #    a. Check memory limits
+def solve(forward_seeds, backward_seeds=None, max_iterations=100,
+          lightning_interval=5, goal: GoalCondition = None):  # NEW: goal param
+    # 1. Store goal for expansion filtering (self.current_goal = goal)
+    # 2. Initialize frontiers from seeds
+    # 3. Auto-generate backward seeds if not provided (via game.generate_boundary_seeds)
+    # 4. For each iteration:
+    #    a. Check memory limits (stops if > 90% of max_memory_mb)
     #    b. Run lightning probes every N iterations (forward + backward)
     #    c. Expand forward frontier (BFS layer)
+    #       - Filter boundary states by goal.target_signatures
+    #       - Track goal_filtered stat
     #    d. Expand backward frontier (BFS using predecessors)
+    #       - DEPTH LIMITED: Stop at max_backward_depth
+    #       - FRONTIER CAPPED: Stop adding when frontier hits max_frontier_size
     #    e. Find connections (where waves overlap)
     #    f. Crystallize around connections
+    #       - Clear parent tracking when > 5M solved (memory savings)
     #    g. Propagate values through parent links and equivalence
-    # 4. Build and return Hologram
+    # 5. Build and return Hologram
+```
+
+**Goal Filtering in Forward Expansion**:
+```python
+# In _expand_forward(), when reaching boundary:
+if self.game.is_boundary(child):
+    if self.current_goal is not None:
+        sig = self.game.get_signature(child)
+        if sig is not None and not self.current_goal.matches(sig):
+            self.stats['goal_filtered'] += 1
+            if self.current_goal.early_terminate_misses:
+                continue  # Don't explore this path
 ```
 
 #### Statistics Tracked
@@ -210,6 +323,9 @@ self.stats = {
     'equiv_tracked': 0,       # Positions with features tracked
     'equiv_propagated': 0,    # Positions solved via equivalence propagation
     'minimax_solved': 0,      # Positions solved via minimax
+    'goal_filtered': 0,       # Boundary states filtered by goal
+    'frontier_capped': 0,     # Times frontier hit size cap (NEW)
+    'depth_limited': 0,       # Positions skipped due to depth limit (NEW)
 }
 ```
 
@@ -564,6 +680,28 @@ def generate_predecessors(state, max_uncaptures=3):
 | `generate_boundary_seeds()` | Create 7-piece positions from template |
 | `apply_move()` | Apply move for spine reconstruction |
 | `propagate_value()` | Minimax (white max, black min) |
+| `get_signature()` | Material string for goal matching **NEW** |
+| `enumerate_positions()` | Generate positions with given material **NEW** |
+| `get_parent_signatures()` | Materials that capture down to target **NEW** |
+
+#### Material Utilities (Layer 0 Capabilities)
+
+These standalone functions provide CAPABILITIES that Layer 1/2 can use:
+
+```python
+# Get material signature from position
+get_material_string(state) -> str  # "KQRRvKQR"
+
+# Get all 8-piece materials that can capture to target
+get_parent_materials("KQRRvKQR") -> List[str]
+# Returns: ["KQRRvKQRQ", "KQRRvKQRR", "KQRRvKQRB", ...]
+# (Each adds one piece to white or black side)
+
+# Generate random valid positions with given material
+enumerate_material_positions("KQRRvKQR", syzygy, count=100) -> List[ChessState]
+```
+
+**Design Principle**: Layer 0 provides WHAT IS POSSIBLE, Layer 1/2 decides WHAT TO DO.
 
 #### ChessFeatures - Equivalence Class
 
@@ -577,6 +715,74 @@ class ChessFeatures:
     king_distance: int                # Manhattan distance
     turn: str
 ```
+
+---
+
+### Goal-Targeted Solving (Refactored Architecture)
+
+**Purpose**: Find paths to specific material configurations using Layer 0/1/2 separation.
+
+#### The Architectural Insight
+
+**BEFORE** (chess_targeted.py - now deprecated):
+- Targeting logic baked into game class
+- Modified `is_boundary()` and `get_successors()`
+- Tightly coupled, hard to compose
+
+**AFTER** (GoalCondition + material utilities):
+- Layer 0 (chess.py): Provides CAPABILITIES (material utilities)
+- Layer 1/2 (GoalCondition): Defines WHAT TO SEARCH FOR
+- Solver: Respects goals during expansion
+
+#### Use Case: Find All KQRRvKQR Solutions
+
+```python
+from holos import HOLOSSolver, SeedPoint, SearchMode, GoalCondition
+from holos.games.chess import (
+    ChessGame, get_parent_materials, enumerate_material_positions
+)
+
+# 1. Setup game with material utilities (Layer 0)
+game = ChessGame(syzygy_path="./syzygy", min_pieces=6, max_pieces=8)
+
+# 2. Define goal (Layer 1/2)
+goal = GoalCondition(
+    target_signatures={"KQRRvKQR"},
+    early_terminate_misses=True,  # Filter paths to other materials
+    name="KQRRvKQR_only"
+)
+
+# 3. Generate seeds using material utilities
+parent_materials = get_parent_materials("KQRRvKQR")  # 8-piece sources
+forward_positions = []
+for mat in parent_materials:
+    forward_positions.extend(enumerate_material_positions(mat, game.syzygy, 50))
+
+# 4. Solve with goal filtering
+solver = HOLOSSolver(game, name="targeted_search")
+seeds = [SeedPoint(p, SearchMode.WAVE) for p in forward_positions]
+hologram = solver.solve(seeds, max_iterations=10, goal=goal)
+
+# 5. Check results
+print(f"Solved: {len(hologram.solved)}")
+print(f"Goal filtered: {solver.stats['goal_filtered']}")
+```
+
+#### Why This Design is Better
+
+1. **Composability**: Combine goals (`target_signatures = {"KQRRvKQR", "KQRBvKQR"}`)
+2. **Reusability**: Same game instance for different goals
+3. **Correctness**: Filtered states are VALID chess positions, just not our target
+4. **Incremental**: Can merge results from different goal searches
+
+#### Legacy: Running Subprocess Search
+
+The subprocess runner still works but uses deprecated `chess_targeted.py`:
+```bash
+python holos/run_targeted_subprocess.py --target KQRRvKQR
+```
+
+**Recommended**: Use GoalCondition API directly for new searches.
 
 ---
 
@@ -779,6 +985,35 @@ seeds = [SeedPoint(p, SearchMode.WAVE, depth=2) for p in positions if p]
 hologram = solver.solve(seeds, max_iterations=50)
 ```
 
+### Goal-Targeted Solving (NEW)
+
+```python
+from holos import HOLOSSolver, SeedPoint, SearchMode, GoalCondition
+from holos.games.chess import ChessGame, get_parent_materials, enumerate_material_positions
+
+# Setup
+game = ChessGame(syzygy_path="./syzygy", min_pieces=6, max_pieces=8)
+solver = HOLOSSolver(game, name="targeted")
+
+# Define goal: only KQRRvKQR solutions count
+goal = GoalCondition(
+    target_signatures={"KQRRvKQR"},
+    early_terminate_misses=True,
+    name="KQRRvKQR_only"
+)
+
+# Generate seeds from parent materials
+parents = get_parent_materials("KQRRvKQR")
+positions = []
+for mat in parents[:3]:  # First 3 parent materials
+    positions.extend(enumerate_material_positions(mat, game.syzygy, 20))
+
+seeds = [SeedPoint(p, SearchMode.WAVE) for p in positions]
+hologram = solver.solve(seeds, max_iterations=10, goal=goal)
+
+print(f"Goal filtered: {solver.stats['goal_filtered']}")  # Non-target paths
+```
+
 ### Multi-Round Session
 
 ```python
@@ -795,6 +1030,28 @@ h = game.hash_state(position)
 value = hologram.query(h)
 best_move = hologram.get_best_move(h)
 spine = hologram.get_spine_for(h)
+```
+
+### Fresh Start vs Incremental Solving
+
+```python
+# Option 1: Fresh solver for each independent problem
+solver1 = HOLOSSolver(game, name="problem1")
+h1 = solver1.solve(seeds1)
+
+solver2 = HOLOSSolver(game, name="problem2")  # Fresh instance
+h2 = solver2.solve(seeds2)
+
+# Option 2: Reset same solver between problems
+solver = HOLOSSolver(game, name="multi")
+h1 = solver.solve(seeds1)
+solver.reset()  # Clear all state
+h2 = solver.solve(seeds2)
+
+# Option 3: Incremental (state accumulates - useful for related problems)
+solver = HOLOSSolver(game, name="incremental")
+h1 = solver.solve(seeds1)  # Solve first batch
+h2 = solver.solve(seeds2)  # Builds on previous state (no reset)
 ```
 
 ### Layer 1 Meta-Game
@@ -820,6 +1077,109 @@ configs = create_initial_configs(seed_game, num_configs=20)
 ---
 
 ## Changelog
+
+### 2026-01-22 (Update 7) - MEMORY MANAGEMENT & CACHING ANALYSIS
+- **CRITICAL FIX**: Backward frontier explosion (12.7M → 38GB crash)
+- **Added** `max_frontier_size` parameter to HOLOSSolver
+  - Hard cap on next_frontier size (default 2M)
+  - Prevents unbounded memory growth
+- **Added** `max_backward_depth` parameter to HOLOSSolver
+  - Limits backward expansion depth from boundary
+  - For KQRRvKQR targeting: use depth=1 (7→8 piece only)
+- **Added** `backward_depth` tracking dict in solver
+  - Tracks depth of each backward position from boundary
+- **Added** `max_equiv_class_size` (default 10K)
+  - Prevents memory explosion from huge equivalence classes
+- **Added** memory cleanup in crystallization
+  - Clears parent tracking when solved > 5M (saves memory)
+- **Added** new stats: `frontier_capped`, `depth_limited`
+- **Created** `MEMORY_AND_CACHING_ANALYSIS.md` with:
+  - Root cause analysis of memory explosion
+  - Design for disk-backed frontiers
+  - Design for persistent incremental cache
+  - Conservative caching principles
+- **Tested**: 838K positions solved with ~1.4GB memory (was 38GB crash)
+
+**Recommended parameters for targeted KQRRvKQR**:
+```python
+solver = HOLOSSolver(
+    game, max_memory_mb=8000,
+    max_frontier_size=500_000,
+    max_backward_depth=1  # Only 7→8 piece
+)
+```
+
+### 2026-01-22 (Update 6) - CLEAN LAYER SEPARATION
+- **MAJOR**: Renamed `core.py` to `holos.py` (THE ENGINE)
+  - Clarifies that this is the algorithm itself, used by ALL layers
+  - Not a "game" but the search engine that games use
+- **MOVED** `ModeDecision` and `ModeSelector` to `games/seeds.py`
+  - These are Layer 1 concerns (tactical mode selection)
+- **CREATED** `games/strategy.py` for Layer 2
+  - `GoalCondition` (re-exported from holos.py)
+  - `StrategyGame`: Meta-game for goal/budget allocation
+  - `StrategyState`: Budget allocation across goals
+  - `StrategyValue`: Completeness and efficiency metrics
+- **Updated** all imports from `holos.core` to `holos.holos`
+- **Key Architectural Clarity**:
+  - holos.py = THE ENGINE (bidirectional search algorithm)
+  - games/chess.py = Layer 0 (CAPABILITIES - what moves exist)
+  - games/seeds.py = Layer 1 (TACTICS - which seeds to expand, what mode)
+  - games/strategy.py = Layer 2 (STRATEGY - which goals to pursue)
+  - All layers use HOLOSSolver, just with different GameInterface implementations
+
+### 2026-01-22 (Update 5) - ARCHITECTURAL REFACTOR
+- **MAJOR**: Refactored targeting into proper Layer 0/1/2 separation
+  - Layer 0 (chess.py): Material CAPABILITIES (get_material_string, get_parent_materials, enumerate_material_positions)
+  - Layer 1/2 (core.py): GoalCondition for targeting STRATEGY
+  - Solver: goal parameter for filtered solving
+- **Added** `GoalCondition` dataclass to core.py
+  - `target_signatures`: Set of valid boundary signatures
+  - `early_terminate_misses`: Whether to prune non-goal paths
+  - Used by solver.solve(goal=goal)
+- **Added** material utilities to chess.py (Layer 0):
+  - `get_material_string(state)` → "KQRRvKQR"
+  - `get_parent_materials(target)` → list of 8-piece parents
+  - `enumerate_material_positions(material, syzygy, count)` → positions
+- **Added** `get_signature()` method to GameInterface
+  - ChessGame.get_signature() returns material string
+  - Enables goal matching in solver
+- **Added** `goal_filtered` stat to track filtered boundary states
+- **Added** `test_goal_targeting.py` with 4 tests (all passing)
+- **DEPRECATED** `chess_targeted.py` - superseded by GoalCondition API
+  - Still functional for backward compatibility
+  - New code should use GoalCondition pattern
+
+### 2026-01-22 (Update 4)
+- **Added** `games/chess_targeted.py` - Targeted material search
+  - `TargetedChessGame`: Filters for specific material configurations
+  - Early termination on captures to wrong material
+  - Auto-generates valid 8-piece source materials
+- **Added** `run_targeted_kqrr.py` - In-process batched search
+- **Added** `run_targeted_subprocess.py` - Subprocess-isolated search
+  - Memory isolation between batches (recommended for large searches)
+  - Reproducible from saved seeds
+- **Tested** KQRRvKQR targeted search:
+  - 3.2M positions solved across 3 batches
+  - 483 target material positions found
+  - 340 wrong material positions filtered
+
+### 2026-01-22 (Update 3)
+- **Fixed** `generate_boundary_seeds()` to respect `min_pieces` setting
+  - Was hardcoded to generate 7-piece positions
+  - Now uses `self.min_pieces` for configurable boundary
+- **Added** `solver.reset()` method for fresh starts
+  - Clears all state (frontiers, seen sets, solved, connections, stats)
+  - Use when solving independent problems with same solver instance
+- **Added** frontier size sampling to prevent memory explosion
+  - `_expand_forward()` and `_expand_backward()` now sample if frontier > 500k
+  - Graceful degradation instead of hard memory crash
+- **Added** `test_integration.py` with 5 comprehensive tests:
+  - Boundary seed generation
+  - Solver reset
+  - Hologram merge with deduplication
+  - Connection detection
+  - Crystallization
 
 ### 2026-01-22 (Update 2)
 - Added detailed Crystallization Algorithm documentation (consistent with fractal_holos3.py)
@@ -851,7 +1211,8 @@ configs = create_initial_configs(seed_game, num_configs=20)
 
 **To run tests**:
 ```bash
-cd resonance && python holos/test_equivalence.py
+cd resonance && python holos/test_equivalence.py   # Consistency tests
+cd resonance && python holos/test_integration.py   # Integration tests
 ```
 
 **To run demo**:

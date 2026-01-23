@@ -30,7 +30,7 @@ from typing import List, Tuple, Optional, Any, Set, FrozenSet, Dict
 from dataclasses import dataclass, field
 from collections import defaultdict
 
-from holos.core import GameInterface, SearchMode
+from holos.holos import GameInterface, SearchMode
 
 
 # ============================================================
@@ -351,7 +351,7 @@ class SeedGame(GameInterface[SeedConfiguration, SeedValue]):
 
 def create_seed_solver(chess_game=None, material: str = "KQRRvKQR"):
     """Create a HOLOS solver for the seed selection game"""
-    from holos.core import HOLOSSolver
+    from holos.holos import HOLOSSolver
 
     game = SeedGame(chess_game, material)
     solver = HOLOSSolver(game, name=f"seeds_{material}")
@@ -381,3 +381,80 @@ def create_initial_configs(game: SeedGame, num_configs: int = 20) -> List[SeedCo
         configs.append(config)
 
     return configs[:num_configs]
+
+
+# ============================================================
+# MODE SELECTION (Layer 1 Responsibility)
+# ============================================================
+
+@dataclass
+class ModeDecision:
+    """
+    Tracks mode selection decisions for meta-learning.
+
+    The idea: mode selection (lightning vs wave vs crystal) is itself
+    a decision that can be optimized. Track outcomes to learn which
+    mode works best in which situations.
+
+    This is a Layer 1 concern - tactical decisions about HOW to search.
+    """
+    state_hash: int
+    features: Any  # State features at decision point
+    mode_chosen: SearchMode
+    outcome: Any = None  # Did this mode find a solution?
+    nodes_used: int = 0
+    path_length: int = 0
+    success: bool = False
+
+
+class ModeSelector:
+    """
+    Selects search mode based on state features and history.
+
+    This is Layer 1's job - tactical mode selection per seed position.
+    Layer 2 (strategy) decides overall budget allocation.
+    """
+
+    def __init__(self):
+        self.history: List[ModeDecision] = []
+        self.feature_outcomes: Dict[Any, Dict[SearchMode, List[bool]]] = defaultdict(
+            lambda: defaultdict(list)
+        )
+
+    def select_mode(self, state, game,
+                    default: SearchMode = SearchMode.WAVE) -> SearchMode:
+        """
+        Select mode based on state features and history.
+
+        Simple strategy:
+        - If features match a pattern with known good mode, use that
+        - Otherwise use default (wave for safety, lightning for speed)
+        """
+        features = game.get_features(state)
+        if features is None:
+            return default
+
+        # Check if we have history for these features
+        if features in self.feature_outcomes:
+            outcomes = self.feature_outcomes[features]
+            best_mode = default
+            best_success_rate = 0.0
+
+            for mode, results in outcomes.items():
+                if results:
+                    rate = sum(results) / len(results)
+                    if rate > best_success_rate:
+                        best_success_rate = rate
+                        best_mode = mode
+
+            return best_mode
+
+        return default
+
+    def record_outcome(self, decision: ModeDecision):
+        """Record the outcome of a mode decision"""
+        self.history.append(decision)
+        if decision.features is not None:
+            self.feature_outcomes[decision.features][decision.mode_chosen].append(
+                decision.success
+            )

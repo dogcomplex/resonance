@@ -27,7 +27,7 @@ from enum import IntEnum
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
-from holos.core import GameInterface
+from holos.holos import GameInterface
 
 
 # ============================================================
@@ -577,20 +577,50 @@ class ChessGame(GameInterface[ChessState, ChessValue]):
         """Apply a move to get successor state (for spine tracking)"""
         return apply_move(state, move)
 
+    def get_signature(self, state: ChessState) -> str:
+        """
+        Get material signature for goal matching.
+
+        Returns string like 'KQRRvKQR' for use with GoalCondition.
+        This is a Layer 0 capability used by Layer 1/2 for goal filtering.
+        """
+        return get_material_string(state)
+
+    def enumerate_positions(self, material: str, count: int = 100) -> List[ChessState]:
+        """
+        Generate positions with given material signature.
+
+        This is a Layer 0 capability used by Layer 1/2 for seed generation.
+        """
+        return enumerate_material_positions(material, self.syzygy, count)
+
+    def get_parent_signatures(self, target_signature: str) -> List[str]:
+        """
+        Get signatures of states that can transition to target.
+
+        For chess, returns materials that can capture down to target.
+        This is a Layer 0 capability used by Layer 1/2 for seed planning.
+        """
+        return get_parent_materials(target_signature)
+
     def generate_boundary_seeds(self, template: ChessState, count: int = 100) -> List[ChessState]:
         """
-        Generate 7-piece positions for backward wave seeding.
+        Generate boundary positions for backward wave seeding.
 
-        Strategy: Create valid 7-piece positions with similar material type
+        Strategy: Create valid positions at self.min_pieces with similar material type
         to what's in the template (e.g., if template has queens, keep queens).
+
+        The boundary is defined by self.min_pieces (typically 7 for syzygy tables,
+        but can be lower for simpler testing).
 
         This matches fractal_holos3.py's _generate_boundary_positions() method.
         """
         positions = []
         pieces_template = list(template.pieces)
+        target_pieces = self.min_pieces  # Use configured boundary
 
-        # If template is already <=7 pieces, expand it by randomizing squares
-        if len(pieces_template) <= 7:
+        # If template is already at or below boundary, randomize squares
+        if len(pieces_template) <= target_pieces:
             for _ in range(count * 5):
                 if len(positions) >= count:
                     break
@@ -612,7 +642,8 @@ class ChessGame(GameInterface[ChessState, ChessValue]):
                     if self.syzygy.probe(state) is not None:
                         positions.append(state)
         else:
-            # Template has >7 pieces, reduce to 7
+            # Template has more pieces than target, reduce to target_pieces
+            non_king_target = target_pieces - 2  # Account for 2 kings
             for _ in range(count * 10):
                 if len(positions) >= count:
                     break
@@ -623,14 +654,14 @@ class ChessGame(GameInterface[ChessState, ChessValue]):
                 kings = [(p, sq) for p, sq in pieces if piece_type(p) == 1]
                 others = [(p, sq) for p, sq in pieces if piece_type(p) != 1]
 
-                # Keep 5 non-king pieces
-                if len(others) >= 5:
-                    kept = others[:5]
+                # Keep non_king_target non-king pieces
+                if len(others) >= non_king_target:
+                    kept = others[:non_king_target]
                     new_pieces = kings + kept
 
-                    if len(new_pieces) == 7:
+                    if len(new_pieces) == target_pieces:
                         piece_types = [p for p, sq in new_pieces]
-                        new_squares = random.sample(range(64), 7)
+                        new_squares = random.sample(range(64), target_pieces)
 
                         king_sqs = [new_squares[i] for i, p in enumerate(piece_types) if piece_type(p) == 1]
                         if len(king_sqs) == 2:
@@ -649,7 +680,113 @@ class ChessGame(GameInterface[ChessState, ChessValue]):
 
 
 # ============================================================
-# UTILITIES
+# MATERIAL UTILITIES (for Layer 1/2 goal setting)
+# ============================================================
+
+def get_material_string(state: ChessState) -> str:
+    """
+    Get material signature as string like 'KQRRvKQR'.
+
+    This is a Layer 0 capability used by Layer 1/2 for goal setting.
+    """
+    piece_chars = {
+        Piece.W_KING: 'K', Piece.W_QUEEN: 'Q', Piece.W_ROOK: 'R',
+        Piece.W_BISHOP: 'B', Piece.W_KNIGHT: 'N', Piece.W_PAWN: 'P',
+        Piece.B_KING: 'K', Piece.B_QUEEN: 'Q', Piece.B_ROOK: 'R',
+        Piece.B_BISHOP: 'B', Piece.B_KNIGHT: 'N', Piece.B_PAWN: 'P',
+    }
+    white = ''.join(sorted(
+        [piece_chars.get(p, '?') for p, sq in state.pieces if p <= 6],
+        key=lambda c: 'KQRBNP'.index(c) if c in 'KQRBNP' else 99
+    ))
+    black = ''.join(sorted(
+        [piece_chars.get(p, '?') for p, sq in state.pieces if p > 6],
+        key=lambda c: 'KQRBNP'.index(c) if c in 'KQRBNP' else 99
+    ))
+    return f"{white}v{black}"
+
+
+def get_capture_result_material(state: ChessState, move: Tuple) -> Optional[str]:
+    """
+    If move is a capture, return the resulting material string.
+    Returns None if not a capture.
+
+    This is a Layer 0 capability used by Layer 1/2 for goal filtering.
+    """
+    if move[2] is None:  # Not a capture
+        return None
+    child = apply_move(state, move)
+    return get_material_string(child)
+
+
+def get_parent_materials(target_material: str) -> List[str]:
+    """
+    Get all material configurations that can capture down to target.
+
+    Example: 'KQRRvKQR' can come from KQRRvKQRR, KQRRvKQRQ, etc.
+
+    This is a Layer 0 capability used by Layer 1/2 for seed generation.
+    """
+    white_str, black_str = target_material.upper().split('V')
+    parents = []
+
+    # Add piece to black (white will capture it)
+    for piece in ['Q', 'R', 'B', 'N', 'P']:
+        parents.append(f"{white_str}v{black_str}{piece}")
+
+    # Add piece to white (black will capture it)
+    for piece in ['Q', 'R', 'B', 'N', 'P']:
+        parents.append(f"{white_str}{piece}v{black_str}")
+
+    return parents
+
+
+def enumerate_material_positions(material: str, syzygy: 'SyzygyProbe',
+                                  count: int = 100, max_attempts: int = None) -> List[ChessState]:
+    """
+    Generate random valid positions with given material.
+
+    If syzygy is provided, only returns positions that syzygy can solve.
+    This is a Layer 0 capability used by Layer 1/2 for seed generation.
+    """
+    if max_attempts is None:
+        max_attempts = count * 10
+
+    white_str, black_str = material.upper().split('V')
+    white = [PIECE_NAMES[c] for c in white_str]
+    black = [PIECE_NAMES[c] + 6 for c in black_str]
+    all_pieces = white + black
+
+    positions = []
+    for _ in range(max_attempts):
+        if len(positions) >= count:
+            break
+
+        squares = random.sample(range(64), len(all_pieces))
+        pieces = list(zip(all_pieces, squares))
+        state = ChessState(pieces, random.choice(['w', 'b']))
+
+        # Validate
+        wk = next((sq for p, sq in pieces if p == Piece.W_KING), None)
+        bk = next((sq for p, sq in pieces if p == Piece.B_KING), None)
+        if wk is None or bk is None:
+            continue
+        if abs(wk // 8 - bk // 8) <= 1 and abs(wk % 8 - bk % 8) <= 1:
+            continue
+        if in_check(state, 'b' if state.turn == 'w' else 'w'):
+            continue
+
+        # Check syzygy if available
+        if syzygy is not None and syzygy.probe(state) is None:
+            continue
+
+        positions.append(state)
+
+    return positions
+
+
+# ============================================================
+# GENERAL UTILITIES
 # ============================================================
 
 def random_position(material: str, max_attempts=1000) -> Optional[ChessState]:
@@ -679,7 +816,7 @@ def random_position(material: str, max_attempts=1000) -> Optional[ChessState]:
 def create_chess_solver(syzygy_path: str = "./syzygy",
                         min_pieces: int = 7, max_pieces: int = 8):
     """Create a HOLOS solver for chess"""
-    from holos.core import HOLOSSolver
+    from holos.holos import HOLOSSolver
 
     game = ChessGame(syzygy_path, min_pieces, max_pieces)
     solver = HOLOSSolver(game, name=f"chess_{min_pieces}to{max_pieces}")
