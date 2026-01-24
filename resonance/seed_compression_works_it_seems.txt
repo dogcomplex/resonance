@@ -1,0 +1,118 @@
+G:\LOKI\LOCUS\SENSUS\resonance\resonance>python holos/test_seed_compression.py
+======================================================================
+SEED COMPRESSION TEST
+======================================================================
+[OK] Syzygy loaded from ./syzygy
+TargetedChessGame initialized:
+  Target: KQRRVKQR (7 pieces)
+  Sources: 10 8-piece configurations
+
+Generating seeds...
+Generated 100 target boundary positions (KQRRVKQR)
+Generated 200 source positions from 10 materials
+Forward seeds: 200
+Backward seeds: 100
+
+Running HOLOS search...
+
+============================================================
+HOLOS Solver: compression_test
+============================================================
+Seeded 100 backward positions with boundary values
+Forward frontier: 200
+Backward frontier: 100
+
+--- Iteration 0 ---
+  Forward: 200, Backward: 100
+  Solved: 100, Memory: 26 MB
+  Contacts: 38+2133, Propagated: 2476
+  Rate: 39487 pos/s, Connections: 0
+  Equivalence: 5,728 tracked, 2 shortcuts, 1,414 propagated
+
+--- Iteration 1 ---
+  Forward: 3,017, Backward: 5,397
+  Solved: 4,739, Memory: 39 MB
+  ** 95 NEW CONNECTIONS! Crystallizing... **
+  Contacts: 3734+43881, Propagated: 160278
+  Rate: 39631 pos/s, Connections: 95
+  Equivalence: 195,463 tracked, 1,288 shortcuts, 66,352 propagated
+
+--- Iteration 2 ---
+  Forward: 94,828, Backward: 185,338
+  Solved: 211,464, Memory: 474 MB
+  Frontier capped at 500,000
+  ** 16 NEW CONNECTIONS! Crystallizing... **
+  Contacts: 131450+226, Propagated: 1997866
+  Rate: 29524 pos/s, Connections: 111
+  Equivalence: 677,955 tracked, 1,372 shortcuts, 259,758 propagated
+
+Memory limit reached (3091 MB)
+
+============================================================
+COMPLETE: 2,235,890 solved
+  Spines: 0
+  Connections: 111
+============================================================
+Search complete: 2,235,890 solved in 88.5s
+
+============================================================
+SEED COVERAGE ANALYSIS
+============================================================
+Total solved positions: 2,235,890
+
+Analyzing 200 forward seeds...
+  Processed 10/200 forward seeds
+  Processed 20/200 forward seeds
+  Processed 30/200 forward seeds
+  Processed 40/200 forward seeds
+  Processed 50/200 forward seeds
+  Processed 60/200 forward seeds
+  Processed 70/200 forward seeds
+  Processed 80/200 forward seeds
+  Processed 90/200 forward seeds
+  Processed 100/200 forward seeds
+  Processed 110/200 forward seeds
+  Processed 120/200 forward seeds
+  Processed 130/200 forward seeds
+  Processed 140/200 forward seeds
+  Processed 150/200 forward seeds
+  Processed 160/200 forward seeds
+  Processed 170/200 forward seeds
+  Processed 180/200 forward seeds
+  Processed 190/200 forward seeds
+  Processed 200/200 forward seeds
+
+Analyzing 100 backward seeds...
+  Processed 50/100 backward seeds
+  Processed 100/100 backward seeds
+
+--- Results ---
+Seeds used: 300
+Positions reconstructable from seeds: 1,953,557
+Coverage ratio: 87.4%
+Compression ratio: 7453x
+
+--- Optimal Seed Selection (Greedy) ---
+
+--- Coverage by Depth ---
+  Depth 1: 300 seeds, avg 11 solved/seed
+  Depth 2: 300 seeds, avg 379 solved/seed
+  Depth 3: 300 seeds, avg 6478 solved/seed
+  Depth 4: 200 seeds, avg 9640 solved/seed
+  Depth 5: 200 seeds, avg 9688 solved/seed
+
+============================================================
+COMPRESSION POTENTIAL
+============================================================
+Full storage (all positions): 34935.8 KB
+Seed storage (seeds only): 29.3 KB
+Potential compression: 1192x
+
+Coverage achieved: 87.4%
+Missing positions: 282,333
+
+============================================================
+KEY FINDING
+============================================================
+GOOD: >80% coverage. Most positions reconstructable.
+Need to track ~20% of positions separately.

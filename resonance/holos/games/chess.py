@@ -476,45 +476,183 @@ class ChessGame(GameInterface[ChessState, ChessValue]):
     Chess endgame interface for HOLOS.
 
     Boundaries:
-    - Lower: 7-piece positions (Syzygy tablebases)
-    - Upper: Configurable piece count
+    - Lower: min_pieces positions (typically 7 for Syzygy tablebases)
+    - Upper: max_pieces (configurable)
+
+    Optional Targeting:
+    - target_material: Specific material signature to reach (e.g., "KQRRvKQR")
+    - source_materials: Valid source materials to search from (auto-generated if None)
+
+    When targeting is enabled:
+    - is_boundary() only accepts target material positions
+    - get_successors() filters out captures to wrong materials
+    - get_predecessors() only allows valid source materials
     """
 
     def __init__(self, syzygy_path: str = "./syzygy",
-                 min_pieces: int = 7, max_pieces: int = 8):
+                 min_pieces: int = 7, max_pieces: int = 8,
+                 target_material: str = None,
+                 source_materials: List[str] = None):
+        """
+        Initialize chess game interface.
+
+        Args:
+            syzygy_path: Path to Syzygy tablebases
+            min_pieces: Minimum pieces (boundary), typically 7 for Syzygy
+            max_pieces: Maximum pieces to consider
+            target_material: Optional target material signature (e.g., "KQRRvKQR")
+                            When set, only this material counts as boundary.
+            source_materials: Valid 8-piece source materials (auto-generated if None)
+        """
         self.syzygy = SyzygyProbe(syzygy_path)
         self.min_pieces = min_pieces
         self.max_pieces = max_pieces
+
+        # Targeting configuration
+        self.target_material = target_material.upper() if target_material else None
+        self.source_materials = None
+        self._target_signature = None
+        self._source_signatures = None
+
+        if self.target_material:
+            self._target_signature = self._parse_material_signature(self.target_material)
+            if source_materials is None:
+                source_materials = get_parent_materials(self.target_material)
+            self.source_materials = [m.upper() for m in source_materials]
+            self._source_signatures = {self._parse_material_signature(m) for m in self.source_materials}
+
+            print(f"ChessGame targeting enabled:")
+            print(f"  Target: {self.target_material} ({self.min_pieces} pieces)")
+            print(f"  Sources: {len(self.source_materials)} configurations")
+
+        # Filter statistics (for targeted mode)
+        self.filter_stats = {
+            'wrong_material_filtered': 0,
+            'target_material_found': 0,
+            'source_positions_generated': 0,
+        }
+
+    def _parse_material_signature(self, material: str) -> frozenset:
+        """Parse material string into a hashable signature"""
+        white_str, black_str = material.upper().split('V')
+        pieces = []
+        for c in white_str:
+            pieces.append(('w', c))
+        for c in black_str:
+            pieces.append(('b', c))
+        return frozenset(pieces)
+
+    def _get_state_material_signature(self, state: ChessState) -> frozenset:
+        """Get material signature from state"""
+        piece_chars = {
+            Piece.W_KING: 'K', Piece.W_QUEEN: 'Q', Piece.W_ROOK: 'R',
+            Piece.W_BISHOP: 'B', Piece.W_KNIGHT: 'N', Piece.W_PAWN: 'P',
+            Piece.B_KING: 'K', Piece.B_QUEEN: 'Q', Piece.B_ROOK: 'R',
+            Piece.B_BISHOP: 'B', Piece.B_KNIGHT: 'N', Piece.B_PAWN: 'P',
+        }
+        pieces = []
+        for p, sq in state.pieces:
+            color = 'w' if p <= 6 else 'b'
+            char = piece_chars.get(p, '?')
+            pieces.append((color, char))
+        return frozenset(pieces)
+
+    def is_target_material(self, state: ChessState) -> bool:
+        """Check if state has target material configuration"""
+        if not self.target_material:
+            return False
+        return self._get_state_material_signature(state) == self._target_signature
+
+    def is_source_material(self, state: ChessState) -> bool:
+        """Check if state has a valid source material configuration"""
+        if not self.source_materials:
+            return False
+        return self._get_state_material_signature(state) in self._source_signatures
 
     def hash_state(self, state: ChessState) -> int:
         return hash(state)
 
     def get_successors(self, state: ChessState) -> List[Tuple[ChessState, Any]]:
-        """Legal moves from this position"""
+        """
+        Legal moves from this position.
+
+        Without targeting: All legal moves within piece count bounds.
+        With targeting: Filters out captures that reach wrong material.
+        """
         if state.piece_count() > self.max_pieces:
             return []
 
         moves = generate_moves(state)
         successors = []
+
         for move in moves:
             child = apply_move(state, move)
-            if self.min_pieces <= child.piece_count() <= self.max_pieces:
-                successors.append((child, move))
-            elif child.piece_count() < self.min_pieces:
-                successors.append((child, move))
+            child_count = child.piece_count()
+
+            # Targeting mode: filter captures to wrong material
+            if self.target_material and move[2] is not None:  # Is a capture
+                if child_count == self.min_pieces:
+                    # Captured down to target piece count - must be target material
+                    if self.is_target_material(child):
+                        successors.append((child, move))
+                    else:
+                        self.filter_stats['wrong_material_filtered'] += 1
+                elif child_count > self.min_pieces:
+                    # Still above target - allow
+                    successors.append((child, move))
+            else:
+                # Non-capture move or no targeting
+                if self.min_pieces <= child_count <= self.max_pieces:
+                    successors.append((child, move))
+                elif child_count < self.min_pieces:
+                    successors.append((child, move))
 
         return successors
 
     def get_predecessors(self, state: ChessState) -> List[Tuple[ChessState, Any]]:
-        """Positions that could lead to this"""
+        """
+        Positions that could lead to this.
+
+        Without targeting: All valid predecessors within piece count bounds.
+        With targeting: Only predecessors from valid source materials.
+        """
         if state.piece_count() >= self.max_pieces:
             return []
 
         preds = generate_predecessors(state, max_uncaptures=3)
-        return [(pred, None) for pred in preds if pred.piece_count() <= self.max_pieces]
+        valid_preds = []
+
+        for pred in preds:
+            if pred.piece_count() > self.max_pieces:
+                continue
+
+            # Targeting mode: check if predecessor is valid source material
+            if self.target_material and pred.piece_count() == self.max_pieces:
+                if self.is_source_material(pred):
+                    valid_preds.append((pred, None))
+                else:
+                    self.filter_stats['wrong_material_filtered'] += 1
+            else:
+                valid_preds.append((pred, None))
+
+        return valid_preds
 
     def is_boundary(self, state: ChessState) -> bool:
-        """Is this on the Syzygy boundary?"""
+        """
+        Is this on the boundary?
+
+        Without targeting: Any position at min_pieces is boundary.
+        With targeting: Only target material positions at min_pieces.
+        """
+        if state.piece_count() > self.min_pieces:
+            return False
+
+        # If targeting enabled, only target material counts as boundary
+        if self.target_material:
+            if state.piece_count() != self.min_pieces:
+                return False
+            return self.is_target_material(state)
+
         return state.piece_count() <= self.min_pieces
 
     def get_boundary_value(self, state: ChessState) -> Optional[ChessValue]:
@@ -523,6 +661,8 @@ class ChessGame(GameInterface[ChessState, ChessValue]):
             return None
         val = self.syzygy.probe(state)
         if val is not None:
+            if self.target_material:
+                self.filter_stats['target_material_found'] += 1
             return ChessValue(val)
         return None
 
@@ -536,8 +676,21 @@ class ChessGame(GameInterface[ChessState, ChessValue]):
 
     def propagate_value(self, state: ChessState,
                         child_values: List[ChessValue]) -> Optional[ChessValue]:
-        """Minimax propagation"""
+        """
+        Minimax propagation.
+
+        For minimax, we need to know whose turn it is:
+        - White's turn: propagate if any child is +1 (white win)
+        - Black's turn: propagate if any child is -1 (black win)
+
+        If state is None (called from reverse propagation), we cannot
+        determine whose turn it is, so we return None to skip.
+        """
         if not child_values:
+            return None
+
+        # State required for minimax - if None, skip reverse propagation
+        if state is None:
             return None
 
         values = [cv.value for cv in child_values]
@@ -677,6 +830,120 @@ class ChessGame(GameInterface[ChessState, ChessValue]):
 
         print(f"Generated {len(positions)} boundary positions (target: {count})")
         return positions
+
+    def generate_target_boundary_seeds(self, count: int = 1000) -> List[ChessState]:
+        """
+        Generate random positions with target material for backward seeding.
+
+        Only works when target_material is set. Returns positions with the
+        exact target material configuration that can be solved by Syzygy.
+
+        This method enables targeted bidirectional search by seeding the
+        backward wave with positions we're trying to reach.
+        """
+        if not self.target_material:
+            raise ValueError("generate_target_boundary_seeds requires target_material to be set")
+
+        white_pieces, black_pieces = _parse_material_string(self.target_material)
+        all_pieces = white_pieces + black_pieces
+        positions = []
+
+        for _ in range(count * 10):
+            if len(positions) >= count:
+                break
+
+            squares = random.sample(range(64), len(all_pieces))
+            pieces = list(zip(all_pieces, squares))
+            state = ChessState(pieces, random.choice(['w', 'b']))
+
+            # Validate king positions
+            wk = next((sq for p, sq in pieces if p == Piece.W_KING), None)
+            bk = next((sq for p, sq in pieces if p == Piece.B_KING), None)
+            if wk is None or bk is None:
+                continue
+            if abs(wk // 8 - bk // 8) <= 1 and abs(wk % 8 - bk % 8) <= 1:
+                continue
+            if in_check(state, 'b' if state.turn == 'w' else 'w'):
+                continue
+
+            # Must be solvable by syzygy
+            if self.syzygy.probe(state) is not None:
+                positions.append(state)
+
+        print(f"Generated {len(positions)} target boundary positions ({self.target_material})")
+        return positions
+
+    def generate_source_positions(self, count_per_material: int = 100) -> List[ChessState]:
+        """
+        Generate positions from all valid source materials.
+
+        Only works when target_material is set. Returns 8-piece positions
+        that could potentially capture down to the target 7-piece material.
+
+        This method enables targeted forward search from valid source positions.
+        """
+        if not self.target_material or not self.source_materials:
+            raise ValueError("generate_source_positions requires target_material to be set")
+
+        all_positions = []
+
+        for material in self.source_materials:
+            white_pieces, black_pieces = _parse_material_string(material)
+            all_pieces = white_pieces + black_pieces
+            positions = []
+
+            for _ in range(count_per_material * 10):
+                if len(positions) >= count_per_material:
+                    break
+
+                squares = random.sample(range(64), len(all_pieces))
+                pieces = list(zip(all_pieces, squares))
+                state = ChessState(pieces, random.choice(['w', 'b']))
+
+                # Validate
+                wk = next((sq for p, sq in pieces if p == Piece.W_KING), None)
+                bk = next((sq for p, sq in pieces if p == Piece.B_KING), None)
+                if wk is None or bk is None:
+                    continue
+                if abs(wk // 8 - bk // 8) <= 1 and abs(wk % 8 - bk % 8) <= 1:
+                    continue
+                if in_check(state, 'b' if state.turn == 'w' else 'w'):
+                    continue
+
+                positions.append(state)
+
+            all_positions.extend(positions)
+            self.filter_stats['source_positions_generated'] += len(positions)
+
+        print(f"Generated {len(all_positions)} source positions from {len(self.source_materials)} materials")
+        return all_positions
+
+    def get_filter_summary(self) -> str:
+        """Get summary of filter statistics (for targeted mode)"""
+        if not self.target_material:
+            return "No targeting enabled"
+        return (f"ChessGame({self.target_material}):\n"
+                f"  Target material found: {self.filter_stats['target_material_found']}\n"
+                f"  Wrong material filtered: {self.filter_stats['wrong_material_filtered']}\n"
+                f"  Source positions generated: {self.filter_stats['source_positions_generated']}")
+
+
+def _parse_material_string(material: str) -> Tuple[List[int], List[int]]:
+    """Parse 'KQRRvKQR' into piece lists"""
+    material = material.upper()
+    white_str, black_str = material.split('V')
+
+    white_pieces = []
+    for c in white_str:
+        if c in PIECE_NAMES:
+            white_pieces.append(PIECE_NAMES[c])
+
+    black_pieces = []
+    for c in black_str:
+        if c in PIECE_NAMES:
+            black_pieces.append(PIECE_NAMES[c] + 6)  # Black pieces are +6
+
+    return white_pieces, black_pieces
 
 
 # ============================================================
@@ -821,3 +1088,92 @@ def create_chess_solver(syzygy_path: str = "./syzygy",
     game = ChessGame(syzygy_path, min_pieces, max_pieces)
     solver = HOLOSSolver(game, name=f"chess_{min_pieces}to{max_pieces}")
     return solver, game
+
+
+def create_targeted_solver(target_material: str = "KQRRvKQR",
+                           syzygy_path: str = "./syzygy",
+                           max_memory_mb: int = 4000):
+    """
+    Create a HOLOS solver for targeted material search.
+
+    Returns solver and game configured to find all 8-piece positions
+    leading to the target 7-piece material.
+
+    This replaces the deprecated chess_targeted.py module.
+    """
+    from holos.holos import HOLOSSolver
+
+    target_pieces = len(target_material.replace('V', '').replace('v', ''))
+    game = ChessGame(
+        syzygy_path,
+        min_pieces=target_pieces,
+        max_pieces=target_pieces + 1,
+        target_material=target_material
+    )
+    solver = HOLOSSolver(game, name=f"targeted_{target_material}", max_memory_mb=max_memory_mb)
+
+    return solver, game
+
+
+# ============================================================
+# BACKWARDS COMPATIBILITY
+# ============================================================
+
+# Alias for backwards compatibility with chess_targeted.py
+# Users should migrate to ChessGame(target_material=...) instead
+class TargetedChessGame(ChessGame):
+    """
+    DEPRECATED: Use ChessGame with target_material parameter instead.
+
+    This class exists for backwards compatibility with code that imported
+    TargetedChessGame from chess_targeted.py. New code should use:
+
+        game = ChessGame(syzygy_path, target_material="KQRRvKQR")
+
+    Instead of:
+
+        game = TargetedChessGame(syzygy_path, "KQRRvKQR")
+    """
+
+    def __init__(self, syzygy_path: str = "./syzygy",
+                 target_material: str = "KQRRvKQR",
+                 source_materials: List[str] = None):
+        import warnings
+        warnings.warn(
+            "TargetedChessGame is deprecated. Use ChessGame(target_material=...) instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+
+        target_pieces = len(target_material.replace('V', '').replace('v', ''))
+        super().__init__(
+            syzygy_path=syzygy_path,
+            min_pieces=target_pieces,
+            max_pieces=target_pieces + 1,
+            target_material=target_material,
+            source_materials=source_materials
+        )
+
+    def summary(self) -> str:
+        """Alias for get_filter_summary() for backwards compatibility"""
+        return self.get_filter_summary()
+
+
+# Helper functions that were in chess_targeted.py
+def get_8piece_variants(target_7piece: str) -> List[str]:
+    """
+    Alias for get_parent_materials for backwards compatibility.
+
+    Get all 8-piece material configs that could capture down to target 7-piece.
+    """
+    return get_parent_materials(target_7piece)
+
+
+def material_string(state: ChessState) -> str:
+    """Alias for get_material_string for backwards compatibility."""
+    return get_material_string(state)
+
+
+def parse_material_string(material: str) -> Tuple[List[int], List[int]]:
+    """Public alias for _parse_material_string for backwards compatibility."""
+    return _parse_material_string(material)

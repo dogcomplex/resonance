@@ -356,8 +356,15 @@ class Connect4Game(GameInterface[C4State, C4Value]):
         """
         Minimax propagation.
         X (first player) maximizes, O minimizes.
+
+        If state is None (called from reverse propagation), we cannot
+        determine whose turn it is, so we return None to skip.
         """
         if not child_values:
+            return None
+
+        # State required for minimax - if None, skip reverse propagation
+        if state is None:
             return None
 
         values = [cv.value for cv in child_values]

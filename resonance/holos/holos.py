@@ -40,6 +40,7 @@ class SearchMode(Enum):
     LIGHTNING = "lightning"  # DFS probe for fast paths
     WAVE = "wave"            # BFS for breadth coverage
     CRYSTAL = "crystal"      # Local search around connections
+    OSMOSIS = "osmosis"      # Careful bilateral: single best step from either frontier
 
 
 @dataclass
@@ -319,7 +320,8 @@ class HOLOSSolver(Generic[S, V]):
     def __init__(self, game: GameInterface[S, V], name: str = "holos",
                  max_memory_mb: int = 4000,
                  max_frontier_size: int = 2_000_000,
-                 max_backward_depth: int = None):
+                 max_backward_depth: int = None,
+                 spine_as_boundary: bool = False):
         """
         Initialize HOLOS solver with memory management.
 
@@ -330,12 +332,16 @@ class HOLOSSolver(Generic[S, V]):
             max_frontier_size: Hard cap on frontier size (prevents memory explosion)
             max_backward_depth: Limit backward expansion depth (None = unlimited)
                                For targeted search, use 1-2 to prevent explosion.
+            spine_as_boundary: If True, treat found spines as additional backward seeds.
+                              This implements the c4_crystal.py insight that "the first
+                              solution becomes a NEW BOUNDARY CONDITION".
         """
         self.game = game
         self.name = name
         self.max_memory_mb = max_memory_mb
         self.max_frontier_size = max_frontier_size
         self.max_backward_depth = max_backward_depth
+        self.spine_as_boundary = spine_as_boundary
 
         # State tracking
         self.forward_frontier: Dict[int, S] = {}
@@ -363,7 +369,7 @@ class HOLOSSolver(Generic[S, V]):
         self.equiv_outcomes: Dict[Any, Optional[V]] = {}
         self.max_equiv_class_size = 10_000  # Prevent memory explosion
 
-        # Stats (matching fractal_holos3.py)
+        # Stats (matching fractal_holos3.py + phase timing from c4_crystal.py)
         self.stats = {
             'lightning_probes': 0,
             'connections': 0,
@@ -378,6 +384,15 @@ class HOLOSSolver(Generic[S, V]):
             'goal_filtered': 0,  # States filtered by goal condition
             'frontier_capped': 0,  # Times frontier hit size cap
             'depth_limited': 0,  # Positions skipped due to depth limit
+            'spine_seeds_added': 0,  # Spine positions added as backward seeds
+        }
+
+        # Phase timing (inspired by c4_crystal.py)
+        self.phase_timing = {
+            'lightning_time': 0.0,
+            'wave_time': 0.0,
+            'crystal_time': 0.0,
+            'propagation_time': 0.0,
         }
 
         # Goal condition for targeted search (set during solve())
@@ -427,6 +442,13 @@ class HOLOSSolver(Generic[S, V]):
             'goal_filtered': 0,
             'frontier_capped': 0,
             'depth_limited': 0,
+            'spine_seeds_added': 0,
+        }
+        self.phase_timing = {
+            'lightning_time': 0.0,
+            'wave_time': 0.0,
+            'crystal_time': 0.0,
+            'propagation_time': 0.0,
         }
 
     def solve(self, forward_seeds: List[SeedPoint[S]],
@@ -500,6 +522,8 @@ class HOLOSSolver(Generic[S, V]):
         print(f"Backward frontier: {len(self.backward_frontier):,}")
         if self.max_backward_depth is not None:
             print(f"Backward depth limit: {self.max_backward_depth}")
+        if self.spine_as_boundary:
+            print(f"Spine-as-boundary: ENABLED (spines seed backward wave)")
 
         start_time = time.time()
 
@@ -521,20 +545,28 @@ class HOLOSSolver(Generic[S, V]):
 
             # Lightning probes every N iterations (like fractal_holos3)
             if iteration % lightning_interval == 0:
+                lightning_start = time.time()
                 self._lightning_phase()
+                self.phase_timing['lightning_time'] += time.time() - lightning_start
 
-            # Expand both directions
+            # Expand both directions (wave phase)
+            wave_start = time.time()
             fwd_contacts = self._expand_forward()
             bwd_contacts = self._expand_backward()
+            self.phase_timing['wave_time'] += time.time() - wave_start
 
             # Check for connections
             new_conns = self._find_connections()
             if new_conns:
                 print(f"  ** {new_conns} NEW CONNECTIONS! Crystallizing... **")
+                crystal_start = time.time()
                 self._crystallize()
+                self.phase_timing['crystal_time'] += time.time() - crystal_start
 
             # Propagate values
+            prop_start = time.time()
             propagated = self._propagate()
+            self.phase_timing['propagation_time'] += time.time() - prop_start
 
             elapsed = time.time() - start_time
             total_seen = len(self.forward_seen) + len(self.backward_seen)
@@ -553,6 +585,7 @@ class HOLOSSolver(Generic[S, V]):
         hologram.equiv_classes = dict(self.equiv_classes)
         hologram.equiv_outcomes = dict(self.equiv_outcomes)
         hologram.stats = dict(self.stats)
+        hologram.stats['phase_timing'] = dict(self.phase_timing)  # Include phase timing
 
         print(f"\n{'='*60}")
         print(f"COMPLETE: {len(self.solved):,} solved")
@@ -597,12 +630,14 @@ class HOLOSSolver(Generic[S, V]):
                     h = self.game.hash_state(state)
                     moves = [m for s, m in path]
 
-                    # Calculate end state
+                    # Calculate end state and collect intermediate states
                     end_state = state
+                    spine_states = [(state, h)]  # Collect (state, hash) for spine-as-boundary
                     for s, m in path:
                         next_state = self.game.apply_move(s, m)
                         if next_state is not None:
                             end_state = next_state
+                            spine_states.append((next_state, self.game.hash_state(next_state)))
 
                     spine = SpinePath(
                         start_hash=h,
@@ -620,6 +655,17 @@ class HOLOSSolver(Generic[S, V]):
                         sh = self.game.hash_state(s)
                         if sh not in self.solved:
                             self.solved[sh] = value
+
+                    # SPINE-AS-BOUNDARY: Add spine positions to backward frontier
+                    # This implements the c4_crystal.py insight that solved paths
+                    # become new boundary conditions for further exploration
+                    if self.spine_as_boundary:
+                        for spine_state, spine_hash in spine_states:
+                            if spine_hash not in self.backward_seen:
+                                self.backward_seen.add(spine_hash)
+                                self.backward_frontier[spine_hash] = spine_state
+                                self.backward_depth[spine_hash] = 0  # Treat as boundary
+                                self.stats['spine_seeds_added'] += 1
 
             if spines_found:
                 print(f"  Lightning (fwd): {spines_found} spines found ({total_nodes} nodes)")
@@ -668,7 +714,7 @@ class HOLOSSolver(Generic[S, V]):
                 self.equiv_classes[features].add(h)
                 equiv_added += 1
 
-            # Check terminal
+            # Check terminal - no children to expand
             is_term, value = self.game.is_terminal(state)
             if is_term:
                 self.solved[h] = value
@@ -677,21 +723,23 @@ class HOLOSSolver(Generic[S, V]):
                 contacts += 1
                 continue
 
-            # Already solved?
-            if h in self.solved:
+            # Track if position was already solved (but still expand children!)
+            already_solved = h in self.solved
+            if already_solved:
                 contacts += 1
-                continue
+                # DON'T continue - we still need to expand children to grow the frontier
 
-            # Equivalence shortcut (like fractal_holos3)
-            if features is not None and features in self.equiv_outcomes:
+            # Equivalence shortcut
+            if not already_solved and features is not None and features in self.equiv_outcomes:
                 eq_value = self.equiv_outcomes[features]
                 if eq_value is not None:
                     self.solved[h] = eq_value
                     self.stats['equiv_shortcuts'] += 1
                     contacts += 1
-                    continue
+                    already_solved = True
+                    # DON'T continue - still expand children
 
-            # Expand children
+            # Expand children (even for solved positions - to grow forward frontier)
             for child, move in self.game.get_successors(state):
                 ch = self.game.hash_state(child)
 
@@ -915,13 +963,27 @@ class HOLOSSolver(Generic[S, V]):
         for _ in range(50):
             newly_solved = 0
 
-            # Forward propagation
+            # Forward propagation (parent → child)
             for ch, (ph, move) in list(self.forward_parents.items()):
                 if ph in self.solved and ch not in self.solved:
                     self.solved[ch] = self.solved[ph]
                     newly_solved += 1
 
-            # Backward propagation
+            # Reverse forward propagation (child → parent)
+            # This is used for single-player games (Sudoku) where
+            # any solved child means the parent is solvable.
+            # For two-player minimax games, propagate_value(None, ...) returns None
+            # because it needs the state to determine whose turn it is.
+            for ch, (ph, move) in list(self.forward_parents.items()):
+                if ch in self.solved and ph not in self.solved:
+                    # Pass None as state - single-player games (Sudoku) will accept this,
+                    # minimax games (Chess) will return None and skip
+                    value = self.game.propagate_value(None, [self.solved[ch]])
+                    if value is not None:
+                        self.solved[ph] = value
+                        newly_solved += 1
+
+            # Backward propagation (child → parent in backward tree)
             for ch, (ph, move) in list(self.backward_parents.items()):
                 if ch in self.solved and ph not in self.solved:
                     self.solved[ph] = self.solved[ch]
@@ -953,3 +1015,409 @@ class HOLOSSolver(Generic[S, V]):
                 break
 
         return total
+
+    # ============================================================
+    # OSMOSIS MODE - Careful Bilateral Exploration
+    # ============================================================
+    #
+    # Like osmosis in biology - movement driven by concentration gradients.
+    # The frontier with the "highest pressure" (most certain/promising state)
+    # advances first. This achieves maximally careful inductive solving.
+    #
+    # Physical analogy:
+    # - Lightning = electrical discharge (fast, direct)
+    # - Wave = water waves (uniform expansion)
+    # - Crystal = crystallization (grows from seed points)
+    # - Osmosis = diffusion through membrane (selective, gradient-driven)
+    #
+    # In osmosis mode:
+    # 1. Score all frontier states on both sides
+    # 2. Pick the single best state to expand
+    # 3. Expand only that one state
+    # 4. Repeat until connection or budget exhausted
+    #
+    # This is the "maximally careful" approach - never expanding anything
+    # that isn't the best available option.
+
+    def _score_state_for_osmosis(self, state: S, h: int, direction: str) -> float:
+        """
+        Score a state for osmosis expansion priority.
+
+        Higher score = should expand first.
+
+        Factors:
+        - Proximity to known values (already-solved neighbors)
+        - Certainty (how many children/parents have known values)
+        - Feature matching with solved equivalence classes
+        - Constraint propagation (forced moves score higher)
+        - Frontier size balance (favor smaller frontier to keep things balanced)
+        """
+        score = 0.0
+
+        # Base score from solved neighbors
+        if direction == "forward":
+            neighbors = self.game.get_successors(state)
+        else:
+            neighbors = self.game.get_predecessors(state)
+
+        total_neighbors = len(neighbors)
+        solved_neighbors = 0
+        boundary_neighbors = 0
+
+        for child, move in neighbors:
+            ch = self.game.hash_state(child)
+            if ch in self.solved:
+                solved_neighbors += 1
+                score += 10.0  # Each solved neighbor adds certainty
+
+            # Bonus if child is boundary
+            if self.game.is_boundary(child):
+                boundary_neighbors += 1
+                score += 50.0  # Very close to known truth
+
+            # Bonus if child was seen by the other wave (potential connection!)
+            if direction == "forward" and ch in self.backward_seen:
+                score += 100.0  # About to connect!
+            elif direction == "backward" and ch in self.forward_seen:
+                score += 100.0  # About to connect!
+
+        # Ratio of solved neighbors (higher = more certain)
+        if total_neighbors > 0:
+            certainty_ratio = solved_neighbors / total_neighbors
+            score += certainty_ratio * 20.0
+
+        # Forced move bonus (only one option = very certain)
+        if total_neighbors == 1:
+            score += 100.0  # Forced move - expand this first!
+        elif total_neighbors == 2:
+            score += 25.0  # Nearly forced
+
+        # Equivalence class bonus
+        features = self.game.get_features(state)
+        if features is not None:
+            if features in self.equiv_outcomes and self.equiv_outcomes[features] is not None:
+                score += 75.0  # We already know this class's outcome
+            elif features in self.equiv_classes and len(self.equiv_classes[features]) > 5:
+                score += 15.0  # Well-populated class - more likely to have info soon
+
+        # Penalty for depth in backward direction (prefer shallow)
+        if direction == "backward" and h in self.backward_depth:
+            depth = self.backward_depth[h]
+            score -= depth * 2.0  # Slight penalty for being far from boundary
+
+        # BALANCE FACTOR: Favor the smaller frontier to maintain bidirectional progress
+        # This is the key to osmosis working correctly - like pressure differential
+        fwd_size = len(self.forward_frontier)
+        bwd_size = len(self.backward_frontier)
+
+        if direction == "forward":
+            # If forward is much smaller, give it a boost (pressure to equalize)
+            if fwd_size < bwd_size:
+                ratio = bwd_size / max(fwd_size, 1)
+                score += min(ratio * 10.0, 100.0)  # Cap at 100
+        else:  # backward
+            # If backward is much smaller, give it a boost
+            if bwd_size < fwd_size:
+                ratio = fwd_size / max(bwd_size, 1)
+                score += min(ratio * 10.0, 100.0)  # Cap at 100
+
+        return score
+
+    def solve_osmosis(self, forward_seeds: List[SeedPoint[S]],
+                      backward_seeds: List[SeedPoint[S]] = None,
+                      max_steps: int = 10000,
+                      goal: GoalCondition = None,
+                      verbose: bool = True) -> 'Hologram':
+        """
+        Solve using osmosis mode - maximally careful bilateral exploration.
+
+        Unlike wave mode (expand all frontier), osmosis expands ONE state at a time,
+        always choosing the state with highest "certainty pressure" from either
+        forward or backward frontier.
+
+        This is the most careful possible approach to inductive solving:
+        - Never expand anything that isn't the best option
+        - Naturally balances forward/backward based on information gradient
+        - Converges where the evidence is strongest
+
+        Args:
+            forward_seeds: Starting positions
+            backward_seeds: Boundary positions (auto-generated if None)
+            max_steps: Maximum single-state expansions
+            goal: Optional goal condition for targeted search
+            verbose: Print progress updates
+
+        Returns:
+            Hologram with solved states
+        """
+        from .storage import Hologram, SpinePath
+
+        self.current_goal = goal
+
+        if verbose:
+            print(f"\n{'='*60}")
+            print(f"HOLOS Osmosis Mode: {self.name}")
+            if goal:
+                print(f"Goal: {goal.name}")
+            print(f"{'='*60}")
+            print("Osmosis: Careful bilateral exploration")
+            print("Each step expands the single most-certain frontier state")
+
+        # Initialize frontiers (same as regular solve)
+        for seed in forward_seeds:
+            h = self.game.hash_state(seed.state)
+            if h not in self.forward_seen:
+                self.forward_seen.add(h)
+                self.forward_frontier[h] = seed.state
+
+        if backward_seeds is None and forward_seeds:
+            generated = self.game.generate_boundary_seeds(forward_seeds[0].state, count=50)
+            backward_seeds = [SeedPoint(s, SearchMode.OSMOSIS) for s in generated]
+            if verbose:
+                print(f"Auto-generated {len(backward_seeds)} backward seeds")
+
+        seeded_backward = 0
+        if backward_seeds:
+            for seed in backward_seeds:
+                h = self.game.hash_state(seed.state)
+                if h not in self.backward_seen:
+                    self.backward_seen.add(h)
+                    self.backward_frontier[h] = seed.state
+                    self.backward_depth[h] = 0
+                    if self.game.is_boundary(seed.state):
+                        value = self.game.get_boundary_value(seed.state)
+                        if value is not None:
+                            self.solved[h] = value
+                            seeded_backward += 1
+
+        if verbose:
+            print(f"Forward frontier: {len(self.forward_frontier):,}")
+            print(f"Backward frontier: {len(self.backward_frontier):,}")
+            print(f"Seeded {seeded_backward} boundary values")
+
+        # Osmosis stats
+        osmosis_stats = {
+            'forward_steps': 0,
+            'backward_steps': 0,
+            'connections_found': 0,
+            'forced_moves': 0,
+            'equiv_shortcuts': 0,
+        }
+
+        start_time = time.time()
+        connection_found = False
+
+        for step in range(max_steps):
+            # Check termination conditions
+            if not self.forward_frontier and not self.backward_frontier:
+                if verbose:
+                    print(f"\nStep {step}: Both frontiers empty")
+                break
+
+            # Check if starting position is solved
+            for seed in forward_seeds:
+                h = self.game.hash_state(seed.state)
+                if h in self.solved:
+                    if verbose:
+                        print(f"\nStep {step}: Starting position solved!")
+                    connection_found = True
+                    break
+
+            if connection_found:
+                break
+
+            # Score all frontier states
+            best_score = float('-inf')
+            best_state = None
+            best_hash = None
+            best_direction = None
+
+            # Score forward frontier
+            for h, state in self.forward_frontier.items():
+                score = self._score_state_for_osmosis(state, h, "forward")
+                if score > best_score:
+                    best_score = score
+                    best_state = state
+                    best_hash = h
+                    best_direction = "forward"
+
+            # Score backward frontier
+            for h, state in self.backward_frontier.items():
+                score = self._score_state_for_osmosis(state, h, "backward")
+                # No manual bias - let the balance factor do its job
+                if score > best_score:
+                    best_score = score
+                    best_state = state
+                    best_hash = h
+                    best_direction = "backward"
+
+            if best_state is None:
+                break
+
+            # Expand the best state
+            if best_direction == "forward":
+                osmosis_stats['forward_steps'] += 1
+                self._osmosis_expand_forward_single(best_hash, best_state, osmosis_stats)
+            else:
+                osmosis_stats['backward_steps'] += 1
+                self._osmosis_expand_backward_single(best_hash, best_state, osmosis_stats)
+
+            # Check for connection
+            overlap = self.forward_seen & self.backward_seen
+            for h in overlap:
+                if h in self.solved:
+                    existing = [c for c in self.connections if c[0] == h or c[1] == h]
+                    if not existing:
+                        self.connections.append((h, h, self.solved[h]))
+                        osmosis_stats['connections_found'] += 1
+                        connection_found = True
+
+            # Propagate after each step (osmosis is careful)
+            self._propagate()
+
+            # Progress report every 100 steps
+            if verbose and step > 0 and step % 100 == 0:
+                elapsed = time.time() - start_time
+                print(f"Step {step}: F={len(self.forward_frontier):,} B={len(self.backward_frontier):,} "
+                      f"Solved={len(self.solved):,} ({elapsed:.1f}s)")
+                print(f"  Direction: {best_direction}, Score: {best_score:.1f}")
+
+        elapsed = time.time() - start_time
+
+        # Build hologram
+        hologram = Hologram(self.name)
+        hologram.solved = dict(self.solved)
+        hologram.connections = list(self.connections)
+        hologram.spines = list(self.spines)
+        hologram.equiv_classes = dict(self.equiv_classes)
+        hologram.equiv_outcomes = dict(self.equiv_outcomes)
+        hologram.stats = {
+            **dict(self.stats),
+            'osmosis': osmosis_stats,
+            'total_steps': step,
+            'elapsed_seconds': elapsed,
+        }
+
+        if verbose:
+            print(f"\n{'='*60}")
+            print(f"OSMOSIS COMPLETE in {elapsed:.1f}s")
+            print(f"{'='*60}")
+            print(f"Total steps: {step}")
+            print(f"  Forward: {osmosis_stats['forward_steps']}")
+            print(f"  Backward: {osmosis_stats['backward_steps']}")
+            print(f"Solved: {len(self.solved):,}")
+            print(f"Connections: {osmosis_stats['connections_found']}")
+            print(f"Forced moves expanded: {osmosis_stats['forced_moves']}")
+
+        return hologram
+
+    def _osmosis_expand_forward_single(self, h: int, state: S, stats: dict):
+        """Expand a single forward frontier state (osmosis mode)"""
+        # Remove from frontier
+        if h in self.forward_frontier:
+            del self.forward_frontier[h]
+
+        # Track equivalence
+        features = self.game.get_features(state)
+        if features is not None:
+            self.equiv_classes[features].add(h)
+
+        # Get successors
+        successors = self.game.get_successors(state)
+
+        if len(successors) == 1:
+            stats['forced_moves'] += 1
+
+        for child, move in successors:
+            ch = self.game.hash_state(child)
+
+            # Check boundary
+            if self.game.is_boundary(child):
+                value = self.game.get_boundary_value(child)
+                if value is not None:
+                    self.solved[ch] = value
+                    child_features = self.game.get_features(child)
+                    if child_features is not None:
+                        self.equiv_classes[child_features].add(ch)
+                        self._update_equiv_outcome(child_features, value)
+
+                    # Add to backward frontier
+                    if ch not in self.backward_seen:
+                        self.backward_seen.add(ch)
+                        self.backward_frontier[ch] = child
+                        self.backward_depth[ch] = 0
+                continue
+
+            # Check if already seen
+            if ch in self.forward_seen:
+                continue
+
+            # Check backward overlap (connection!)
+            if ch in self.backward_seen and ch in self.solved:
+                continue
+
+            # Equivalence shortcut
+            child_features = self.game.get_features(child)
+            if child_features is not None and child_features in self.equiv_outcomes:
+                eq_value = self.equiv_outcomes[child_features]
+                if eq_value is not None:
+                    self.solved[ch] = eq_value
+                    stats['equiv_shortcuts'] += 1
+                    continue
+
+            # Add to frontier
+            self.forward_seen.add(ch)
+            self.forward_frontier[ch] = child
+            self.forward_parents[ch] = (h, move)
+
+    def _osmosis_expand_backward_single(self, h: int, state: S, stats: dict):
+        """Expand a single backward frontier state (osmosis mode)"""
+        # Remove from frontier
+        if h in self.backward_frontier:
+            del self.backward_frontier[h]
+
+        current_depth = self.backward_depth.get(h, 0)
+
+        # Get predecessors
+        predecessors = self.game.get_predecessors(state)
+
+        if len(predecessors) == 1:
+            stats['forced_moves'] += 1
+
+        for pred, move in predecessors:
+            ph = self.game.hash_state(pred)
+
+            if ph in self.backward_seen:
+                continue
+
+            self.backward_seen.add(ph)
+            self.backward_depth[ph] = current_depth + 1
+
+            # Track features
+            features = self.game.get_features(pred)
+            if features is not None:
+                self.equiv_classes[features].add(ph)
+
+            # Check forward overlap (connection!)
+            if ph in self.forward_seen:
+                self.stats['connections'] += 1
+                # Try to propagate value
+                if h in self.solved:
+                    # Minimax from child
+                    child_values = [self.solved[h]]
+                    value = self.game.propagate_value(pred, child_values)
+                    if value is not None:
+                        self.solved[ph] = value
+                continue
+
+            # Equivalence shortcut
+            if features is not None and features in self.equiv_outcomes:
+                eq_value = self.equiv_outcomes[features]
+                if eq_value is not None:
+                    self.solved[ph] = eq_value
+                    stats['equiv_shortcuts'] += 1
+                    continue
+
+            # Add to frontier
+            self.backward_frontier[ph] = pred
+            self.backward_parents[ph] = (h, move)

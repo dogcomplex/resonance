@@ -4,4 +4,5 @@
 *.rtbw
 *.emd
 *.zip
+*.pyc
 syzygy/

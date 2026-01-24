@@ -4,7 +4,7 @@ import os
 import pickle
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from holos.core import HOLOSSolver, SeedPoint, SearchMode
+from holos.holos import HOLOSSolver, SeedPoint, SearchMode
 from holos.games.chess_targeted import TargetedChessGame
 
 # Load seeds

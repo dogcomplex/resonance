@@ -44,13 +44,13 @@ from .session import (
     SessionState,
 )
 
-from .batched_solver import (
-    BatchedSolver,
-    BatchedSolverConfig,
-    solve_batched,
+from .full_search import (
+    DiskBackedHologram,
+    FullSearchSession,
+    FullSearchState,
 )
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __all__ = [
     # Core algorithm
     "GameInterface",
@@ -59,15 +59,15 @@ __all__ = [
     "GoalCondition",
     "LightningProbe",
     "HOLOSSolver",
-    # Batched solving (for large searches)
-    "BatchedSolver",
-    "BatchedSolverConfig",
-    "solve_batched",
     # Storage
     "Hologram",
     "SpinePath",
     "SeedFrontierMapping",
+    "DiskBackedHologram",
     # Session management
     "SessionManager",
     "SessionState",
+    # Full search (large-scale)
+    "FullSearchSession",
+    "FullSearchState",
 ]

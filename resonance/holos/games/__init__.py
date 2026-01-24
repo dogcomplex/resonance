@@ -13,6 +13,11 @@ This package contains GameInterface implementations for various games:
   - Minimax value propagation
   - First player (X) wins with perfect play
 
+- sudoku: Sudoku puzzle solver (Layer 0)
+  - Completed valid grids as boundary
+  - Single-player (any child solved = parent solvable)
+  - MRV heuristic for move ordering
+
 - seeds: Seed selection meta-game (Layer 1)
   - Searches over seed configurations
   - Efficiency-based value propagation
@@ -31,11 +36,19 @@ Each game implements the GameInterface from holos.holos:
 - propagate_value: Combine child values
 """
 
-from .chess import ChessGame, ChessValue, ChessState
+from .chess import (
+    ChessGame, ChessValue, ChessState,
+    # Targeting support (consolidated from chess_targeted.py)
+    TargetedChessGame, create_targeted_solver,
+    # Material utilities
+    get_material_string, get_parent_materials, enumerate_material_positions,
+    get_8piece_variants, material_string, parse_material_string,
+    random_position, create_chess_solver
+)
 from .connect4 import Connect4Game, C4State, C4Value, C4Features
+from .sudoku import SudokuGame, SudokuState, SudokuValue, SudokuFeatures
 from .seeds import SeedGame, SeedConfiguration, SeedValue, SeedSpec, ModeDecision, ModeSelector
 from .strategy import GoalCondition, StrategyGame, StrategyState, StrategyValue
-from .chess_targeted import TargetedChessGame, create_targeted_solver
 
 __all__ = [
     # Chess (Layer 0)
@@ -47,9 +60,23 @@ __all__ = [
     "C4State",
     "C4Value",
     "C4Features",
-    # Targeted Chess (deprecated - use GoalCondition)
-    "TargetedChessGame",
+    # Sudoku (Layer 0)
+    "SudokuGame",
+    "SudokuState",
+    "SudokuValue",
+    "SudokuFeatures",
+    # Targeted Chess (backwards compatibility - use ChessGame with target_material)
+    "TargetedChessGame",  # Deprecated wrapper
     "create_targeted_solver",
+    # Material utilities
+    "get_material_string",
+    "get_parent_materials",
+    "enumerate_material_positions",
+    "get_8piece_variants",  # Alias for get_parent_materials
+    "material_string",  # Alias for get_material_string
+    "parse_material_string",
+    "random_position",
+    "create_chess_solver",
     # Seeds (Layer 1)
     "SeedGame",
     "SeedConfiguration",

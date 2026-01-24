@@ -1,0 +1,205 @@
+G:\LOKI\LOCUS\SENSUS\resonance\resonance>python holos/test_layer1_seeds.py
+======================================================================
+LAYER 1 (TACTICS) TEST SUITE
+======================================================================
+
+Layer 1 Architecture:
+  - State: TacticalSeed (position_hash, depth, mode, direction)
+  - Value: TacticalValue (forward_coverage, backward_coverage, efficiency)
+  - Game: TacticalSeedGame wraps any Layer 0 game
+
+Key insight: Each seed needs DUAL coverage for bidirectional search.
+  - Boundary seeds work best with BACKWARD expansion
+  - Source seeds work best with FORWARD expansion
+  - Bilateral is expensive but maximizes coverage
+
+
+######################################################################
+# TEST 1: Connect4 Seeds
+######################################################################
+======================================================================
+LAYER 1 TEST: Connect4 Seed Optimization
+======================================================================
+
+Generating seed pool from Connect4 positions...
+Seed pool: 20 positions
+
+------------------------------------------------------------
+EVALUATING SEED CONFIGURATIONS
+------------------------------------------------------------
+
+--- Seed 1/5 (hash=5543979671009060226) ---
+  Best: Seed(d=3, lightning, forward)
+  Value: TacticalValue(fwd=53, bwd=0, cost=1, eff=53.0)
+
+--- Seed 2/5 (hash=5842991974754928846) ---
+  Best: Seed(d=3, lightning, forward)
+  Value: TacticalValue(fwd=53, bwd=0, cost=1, eff=53.0)
+
+--- Seed 3/5 (hash=4604100036359225329) ---
+  Best: Seed(d=3, wave, forward)
+  Value: TacticalValue(fwd=282, bwd=0, cost=3, eff=94.0)
+
+--- Seed 4/5 (hash=1681651605628484882) ---
+  Best: Seed(d=3, wave, forward)
+  Value: TacticalValue(fwd=282, bwd=0, cost=3, eff=94.0)
+
+--- Seed 5/5 (hash=5483574594051412263) ---
+  Best: Seed(d=3, wave, forward)
+  Value: TacticalValue(fwd=282, bwd=0, cost=3, eff=94.0)
+
+============================================================
+LAYER 1 RESULTS
+============================================================
+
+Best configurations found:
+  1. Seed(d=3, wave, forward)
+     Forward: 282, Backward: 0
+     Efficiency: 94.0
+  2. Seed(d=3, wave, forward)
+     Forward: 282, Backward: 0
+     Efficiency: 94.0
+  3. Seed(d=3, wave, forward)
+     Forward: 282, Backward: 0
+     Efficiency: 94.0
+  4. Seed(d=3, lightning, forward)
+     Forward: 53, Backward: 0
+     Efficiency: 53.0
+  5. Seed(d=3, lightning, forward)
+     Forward: 53, Backward: 0
+     Efficiency: 53.0
+
+TacticalSeedGame:
+  Seed pool: 20 positions
+  Evaluations: 90
+  Cache hits: 0
+  Positions expanded: 3,802
+
+######################################################################
+# TEST 2: Chess Seeds
+######################################################################
+
+======================================================================
+LAYER 1 TEST: Chess Seed Optimization (KQRRvKQR)
+======================================================================
+[OK] Syzygy loaded from ./syzygy
+ChessGame targeting enabled:
+  Target: KQRRVKQR (7 pieces)
+  Sources: 10 configurations
+
+Generating seed pool from chess positions...
+Generated 10 target boundary positions (KQRRVKQR)
+Generated 50 source positions from 10 materials
+Seed pool: 60 positions (10 boundary, 50 source)
+
+------------------------------------------------------------
+EVALUATING CHESS SEED CONFIGURATIONS
+------------------------------------------------------------
+
+Evaluating boundary seeds (prefer backward expansion)...
+  Seed 1: Seed(d=4, lightning, backward) -> eff=1055402.5
+  Seed 2: Seed(d=4, lightning, backward) -> eff=1583037.0
+  Seed 3: Seed(d=4, lightning, backward) -> eff=2043691.5
+  Seed 4: Seed(d=4, lightning, backward) -> eff=1459785.5
+  Seed 5: Seed(d=4, lightning, backward) -> eff=713503.5
+
+Evaluating source seeds (prefer forward expansion)...
+  Seed 1: Seed(d=4, lightning, bilateral) -> eff=397147.0
+  Seed 2: Seed(d=4, lightning, bilateral) -> eff=647886.8
+  Seed 3: Seed(d=4, lightning, bilateral) -> eff=492635.2
+  Seed 4: Seed(d=4, lightning, bilateral) -> eff=725813.5
+  Seed 5: Seed(d=4, lightning, bilateral) -> eff=599783.5
+
+============================================================
+CHESS SEED OPTIMIZATION RESULTS
+============================================================
+
+Boundary seeds (backward expansion):
+  Seed(d=4, lightning, backward)
+    Forward: 0, Backward: 4,087,383
+    Efficiency: 2043691.5
+  Seed(d=4, lightning, backward)
+    Forward: 0, Backward: 3,166,074
+    Efficiency: 1583037.0
+  Seed(d=4, lightning, backward)
+    Forward: 0, Backward: 2,919,571
+    Efficiency: 1459785.5
+
+Source seeds (forward expansion):
+  Seed(d=4, lightning, bilateral)
+    Forward: 3, Backward: 2,903,251
+    Efficiency: 725813.5
+  Seed(d=4, lightning, bilateral)
+    Forward: 11, Backward: 2,591,536
+    Efficiency: 647886.8
+  Seed(d=4, lightning, bilateral)
+    Forward: 4, Backward: 2,399,130
+    Efficiency: 599783.5
+
+Total time: 1586.3s
+
+TacticalSeedGame:
+  Seed pool: 60 positions
+  Evaluations: 120
+  Cache hits: 0
+  Positions expanded: 47,067,950
+
+######################################################################
+# TEST 3: HOLOS Solver on Layer 1
+######################################################################
+
+======================================================================
+HOLOS SOLVER ON LAYER 1 (SEED OPTIMIZATION)
+======================================================================
+Seed pool: 15 positions
+
+Pre-evaluating boundary seeds...
+  Evaluated Seed(d=4, wave, bilateral): TacticalValue(fwd=719, bwd=1, cost=8, eff=90.0)
+  Evaluated Seed(d=4, wave, bilateral): TacticalValue(fwd=719, bwd=2, cost=8, eff=90.1)
+  Evaluated Seed(d=4, wave, bilateral): TacticalValue(fwd=1301, bwd=2, cost=8, eff=162.9)
+  Evaluated Seed(d=4, wave, bilateral): TacticalValue(fwd=1301, bwd=2, cost=8, eff=162.9)
+  Evaluated Seed(d=4, wave, bilateral): TacticalValue(fwd=1301, bwd=2, cost=8, eff=162.9)
+
+Forward seeds (low config): 3
+Backward seeds (high config, evaluated): 3
+
+============================================================
+HOLOS Search on TacticalSeedGame
+============================================================
+
+============================================================
+HOLOS Solver: layer1_seeds
+============================================================
+Seeded 3 backward positions with boundary values
+Forward frontier: 3
+Backward frontier: 3
+
+Memory limit reached (93 MB)
+
+============================================================
+COMPLETE: 3 solved
+  Spines: 0
+  Connections: 0
+============================================================
+
+============================================================
+LAYER 1 HOLOS RESULTS
+============================================================
+Solved configurations: 3
+Connections: 0
+Spines: 0
+
+Sample solved configurations:
+  1. hash=5976990849828520808, value=TacticalValue(fwd=719, bwd=1, cost=8, eff=90.0)
+  2. hash=3874163003555401627, value=TacticalValue(fwd=719, bwd=2, cost=8, eff=90.1)
+  3. hash=6802901999095669189, value=TacticalValue(fwd=1301, bwd=2, cost=8, eff=162.9)
+
+TacticalSeedGame:
+  Seed pool: 15 positions
+  Evaluations: 5
+  Cache hits: 3
+  Positions expanded: 5,350
+
+======================================================================
+LAYER 1 TESTS COMPLETE
+======================================================================
