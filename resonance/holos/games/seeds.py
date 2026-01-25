@@ -9,7 +9,7 @@ Layer 2 (Strategy) handles coordination of MULTIPLE seeds.
 The game:
 - State: A single seed specification (position, depth, mode, direction)
 - Moves: Adjust depth, mode, or direction
-- Value: TacticalValue (forward_coverage, backward_coverage, cost, efficiency)
+- Value: TacticalValue or CompressionAwareSeedValue
 - Boundary: Evaluated seeds (cached results from Layer 0)
 
 KEY INSIGHT: A seed's value depends on DUAL coverage:
@@ -17,16 +17,23 @@ KEY INSIGHT: A seed's value depends on DUAL coverage:
 - Backward coverage: positions that CAN REACH this seed
 Both matter for bidirectional search effectiveness.
 
+COMPRESSION INSIGHT (Update 16):
+- Seeds must compress better than direct position storage
+- net_savings = direct_storage - seed_storage
+- If net_savings <= 0, the seed has NEGATIVE efficiency
+- Use CompressionAwareSeedValue for compression-aware optimization
+- Index-based encoding compresses better than object storage
+
 The tactical game optimizes a seed's parameters to maximize efficiency.
 The strategic game (Layer 2) selects WHICH seeds to use and their ordering.
 
 Architecture:
     Layer 2 (Strategy): Multi-seed coordination, ordering, budget allocation
-        ↓ selects seeds
+        | selects seeds
     Layer 1 (Tactics): Single seed optimization (THIS FILE)
-        ↓ configures seeds
+        | configures seeds
     Layer 0 (Chess): Position-level search
-        ↓ queries
+        | queries
     Boundary: Syzygy Tablebases
 """
 

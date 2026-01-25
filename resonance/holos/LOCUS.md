@@ -1,7 +1,7 @@
 # LOCUS.md - HOLOS Architecture Source of Truth
 
-**Last Updated**: 2026-01-23
-**Version**: 0.1.2
+**Last Updated**: 2026-01-24
+**Version**: 0.1.4
 **Status**: Functionally equivalent to fractal_holos3.py with enhancements
 **Purpose**: Compressed context for AI understanding of this codebase
 
@@ -54,7 +54,30 @@ holos/                              [ROOT PACKAGE]
 │
 ├── README.md                       [249 lines]
 ├── COMPARISON_WITH_FRACTAL_HOLOS3.md [259 lines]
+├── LAYER_ARCHITECTURE.md           [286 lines] (NEW - Update 16)
+│   Purpose: Compute vs Storage tradeoffs, compression-aware efficiency
+│   Key: Each layer trades compute for storage
 ├── LOCUS.md                        [THIS FILE]
+│
+├── seed_meta_game.py               [~400 lines] (NEW - Update 15)
+│   Purpose: Meta-seed compression via HOLOS search over seed space
+│   Classes: SeedRef, MetaSeed, SeedMetaGame, MetaSeedOptimizer
+│   Key: Treats seeds as positions, derivation moves as game moves
+│
+├── compression.py                  [~500 lines] (NEW - Update 16)
+│   Purpose: Compression-aware state representation and efficiency
+│   Classes:
+│     - IndexedStateEncoder: Encode states as compact integer indices
+│     - CompressionAwareSeedValue: Seed value with net_savings metric
+│     - StateDimension, DimensionType: Define state space dimensions
+│     - ValueBucketer: Bucket continuous values for indexed storage
+│     - StateRepresentationComparer: Compare object vs indexed compression
+│   Functions: create_seed_encoder(), create_coverage_bucketer()
+│   Key Insight: Index-based encoding + gzip beats pickle + gzip
+│
+├── test_compression.py             [~350 lines] (NEW - Update 16)
+│   Purpose: Test compression module
+│   Tests: Dimension encoding, encoder roundtrip, compression comparison
 │
 └── games/                          [GAME IMPLEMENTATIONS - All layers]
     │
@@ -94,6 +117,7 @@ holos/                              [ROOT PACKAGE]
     │   Key Design: SINGLE seed optimization (not multi-seed),
     │               Dual coverage measurement (forward + backward),
     │               Game-agnostic wrapper for any Layer 0 game
+    │   Update 16: Compression-aware efficiency (use CompressionAwareSeedValue)
     │   Legacy aliases: SeedSpec, SeedValue, SeedGame (backward compat)
     │
     ├── strategy.py                 [~310 lines] - LAYER 2
@@ -259,46 +283,116 @@ hologram = solver.solve_osmosis(
 )
 ```
 
-### The Layer Architecture (Refined)
+### The Layer Architecture (Refined with Compression-Aware Efficiency)
+
+**Core Insight**: Each layer trades compute for storage. Compression efficiency must be part of the value function at every layer.
+
+See `LAYER_ARCHITECTURE.md` for detailed design documentation.
 
 ```
 holos.py (THE ENGINE) - Used by ALL layers
-    │
-    ├─→ Layer 3 (SPECULATION): Meta-strategy / Domain Transfer
-    │       State = ? (learning representations, game abstractions)
-    │       Value = ? (generalization metrics, transfer success)
-    │       HOLOSSolver(?) searches the space of strategies
-    │
-    ├─→ Layer 2 (strategy.py): Multi-seed Coordination
-    │       State = StrategyState (which seeds, budget allocation, ordering)
-    │       Value = StrategyValue (few-shot performance, combined coverage)
-    │       HOLOSSolver(StrategyGame) searches multi-seed configurations
-    │       KEY: Focuses on FEW-SHOT performance (5-20 seeds max)
-    │
-    ├─→ Layer 1 (seeds.py): SINGLE Seed Optimization
-    │       State = TacticalSeed (position_hash, depth, mode, direction)
-    │       Value = TacticalValue (forward_coverage, backward_coverage, efficiency)
-    │       HOLOSSolver(TacticalSeedGame) searches single seed parameters
-    │       KEY: Measures DUAL coverage (forward + backward)
-    │
-    └─→ Layer 0 (chess.py, connect4.py, sudoku.py): Game Positions
-            State = ChessState/C4State/SudokuState
-            Value = ChessValue/C4Value/SudokuValue
-            HOLOSSolver(GameInterface) searches position space
-            ↓ queries
+    |
+    +-> Layer 3: BALANCE (Compute/Storage Policy)
+    |       "Given hardware constraints, what's the optimal tradeoff?"
+    |       State = ComputeStoragePolicy (memory limit, CPU budget, compression target)
+    |       Value = Pareto efficiency (coverage per byte per FLOP)
+    |       Output: Layer 2 configuration
+    |
+    +-> Layer 2: STRATEGY (Multi-Seed Coordination + Compression)
+    |       "Which seeds together, with what compression scheme?"
+    |       State = SeedSet + CompressionScheme (direct, meta-seeds, delta-encoded)
+    |       Value = Combined coverage + compressed_size + reconstruction_cost
+    |       Files: games/strategy.py, seed_meta_game.py
+    |       KEY: Meta-seeds (roots + moves) compress 6x better than raw seeds
+    |
+    +-> Layer 1: TACTICS (Single Seed Optimization)
+    |       "How to expand this seed efficiently?"
+    |       State = TacticalSeed (position_hash, depth, mode, direction)
+    |       Value = Coverage + compressed_size (NOT raw storage!)
+    |       File: games/seeds.py
+    |       KEY: Seeds must compress better than direct storage or they're useless
+    |
+    +-> Layer 0: EXECUTION (Position Search)
+            "What are the game-theoretic values?"
+            State = GamePosition (ChessState/C4State/SudokuState)
+            Value = Win/Loss/Draw (or problem-specific value)
+            Files: games/chess.py, games/connect4.py, games/sudoku.py
+            Output: Solved positions -> compressed to seeds
+            |
+            v queries
         Boundary: Syzygy Tablebases / Terminal States / Solved Grids
 ```
 
 **Key Insight**: The SAME algorithm (holos.py) searches DIFFERENT state spaces at each layer.
 - Layer 0 searches POSITIONS
-- Layer 1 searches SINGLE SEED PARAMETERS
-- Layer 2 searches MULTI-SEED CONFIGURATIONS
-- Layer 3 (speculation) searches STRATEGIES
+- Layer 1 searches SINGLE SEED PARAMETERS (compression-aware)
+- Layer 2 searches MULTI-SEED CONFIGURATIONS + COMPRESSION SCHEMES
+- Layer 3 searches COMPUTE/STORAGE POLICIES
 
 Each layer uses the same bidirectional search, but with different:
 - State types
-- Value propagation
+- Value propagation (now includes compression metrics)
 - Boundary conditions
+
+### Compression-Aware Efficiency (Key Innovation)
+
+**The Problem**: Old efficiency metric ignored storage overhead:
+```python
+# WRONG: A seed covering 100 positions but requiring 1000 bytes
+# is WORSE than storing the 100 positions at 1 byte each!
+efficiency = coverage / cost  # Doesn't account for storage!
+```
+
+**The Solution**: Include compression in efficiency calculation:
+```python
+# Storage if we just stored positions directly
+direct_storage = coverage * BYTES_PER_POSITION
+
+# Storage for this seed + reconstruction metadata
+seed_storage = seed_size + frontier_overhead + compressed_derivations
+
+# Only count as "efficient" if seed storage < direct storage
+net_savings = direct_storage - seed_storage
+
+# Efficiency must account for both compute AND storage
+efficiency = net_savings / (compute_cost + reconstruction_cost)
+```
+
+**Implication**: Small seeds with negative efficiency should be discarded.
+Seeds are only useful when `net_savings > 0`.
+
+### The Compression Hierarchy (Validated)
+
+From experiments on Connect4:
+```
+Level 1: Game Rules (positions -> seeds)     = 13.4x compression
+Level 2: Derivation Structure (meta-seeds)   = 6x additional
+Level 3: Standard Compression (gzip)         = 8x additional
+
+Combined potential: 13x * 6x * 8x = 600x+
+```
+
+**Key Finding**: Meta-seeds (roots + derivation moves) compress to 89KB
+vs full seeds at 532KB = 83% smaller after gzip.
+
+The STRUCTURE helps standard compression algorithms:
+- Derivation moves (0-6 in Connect4) are highly repetitive
+- gzip finds patterns in the derivation graph
+- Don't reinvent compression - create compressible data structures
+
+### The Compute/Storage Spectrum
+
+```
+<- More Compute                                    More Storage ->
+
+Single bidirectional     Meta-seeds      Full seeds      All positions
+seed from start          (roots+moves)   (every seed)    (no compression)
+
+Compression: infinity    Compression: 6x  Compression: 1x  Compression: 0x
+Compute: Maximum         Compute: Medium  Compute: Low     Compute: Zero
+```
+
+Layer 3 decides WHERE on this spectrum to operate given hardware constraints.
 
 ### Layer 1: Single Seed Tactics (REFINED)
 
@@ -1602,397 +1696,23 @@ can propagate values bidirectionally.
 
 ## Changelog
 
-### 2026-01-23 (Update 14) - LAYER 1 REFINED ARCHITECTURE
+Full changelog has been extracted to **[CHANGELOG.md](CHANGELOG.md)** to keep this document focused on architecture.
 
-**Major refactoring of Layer 1 to single-seed optimization:**
+### Recent Updates (Latest First)
 
-#### Architecture Changes
-- **REFACTORED** seeds.py from multi-seed to single-seed focus
-  - Old: `SeedConfiguration` = set of seeds (too complex for Layer 1)
-  - New: `TacticalSeed` = single seed with (position, depth, mode, direction)
-  - Multi-seed coordination moves to Layer 2
+- **Update 16** (2026-01-24): Compression-aware layer architecture, index-based encoding
+- **Update 15** (2026-01-24): Full Connect4 solver, meta-seed compression
+- **Update 14** (2026-01-23): Layer 1 refined architecture (single-seed focus)
+- **Update 13** (2026-01-23): Chess consolidation, test directory reorganization
+- **Update 12** (2026-01-23): Full search infrastructure, seed compression hypothesis
+- **Update 11** (2026-01-23): Osmosis mode (30x faster on constrained problems)
+- **Update 10** (2026-01-23): Sudoku solver implementation
+- **Update 9** (2026-01-23): Forward expansion fix
+- **Update 8** (2026-01-22): Connect-4 implementation, crystal insights
+- **Update 7** (2026-01-22): Memory management fixes
+- **Update 6** (2026-01-22): Clean layer separation (core.py → holos.py)
 
-#### New Classes
-- `SeedDirection` enum: FORWARD, BACKWARD, BILATERAL
-- `TacticalSeed`: Single seed state (position_hash, depth, mode, direction)
-- `TacticalValue`: Dual coverage metrics (forward_coverage, backward_coverage, efficiency)
-- `TacticalSeedGame(GameInterface)`: Game-agnostic Layer 1 implementation
-
-#### Key Insights
-- **Dual coverage measurement**: Both forward AND backward expansion matter
-  - Boundary seeds → prefer BACKWARD expansion
-  - Source seeds → prefer FORWARD expansion
-  - Bilateral → expensive but maximizes connection potential
-- **DEPTH is dominant variable**: ~10x efficiency per depth level
-- **Game-agnostic design**: TacticalSeedGame wraps ANY underlying GameInterface
-
-#### New Files
-- `test_layer1_seeds.py`: Test suite for Layer 1 tactical optimization
-  - Connect4 seed evaluation tests
-  - Chess seed evaluation tests (if syzygy available)
-  - HOLOS solver on TacticalSeedGame demonstration
-
-#### Updated Documentation
-- LOCUS.md Layer Architecture section refined
-- Layer 1, 2, 3 separation clarified
-- seeds.py documentation updated with new classes
-- Legacy compatibility aliases documented
-
-#### Seed Compression Results (Validated Across Multiple Games)
-
-**Chess (test_seed_compression.py)**:
-```
-Coverage achieved: 87.4%
-Compression ratio: 7,453x
-Missing positions: 282,333 (interaction positions)
-```
-
-**Chess Layer 1 (test_layer1_seeds.py)**:
-```
-Boundary seeds (backward): 4M positions per seed, efficiency 2M
-Source seeds (bilateral): 2.9M positions per seed, efficiency 725K
-Total expanded: 47 million positions in 1586s
-```
-
-**Sudoku (test_sudoku_seeds.py)**:
-```
-Compression ratio: 2.4x (path storage vs full positions)
-Easy puzzle: 51 moves = 349 bytes, solved in 1.8s via HOLOS osmosis
-Database: 20 puzzles = 6.6 KB (reconstruction < 0.001ms per puzzle)
-Layer 1: Backward from solution = 3,322 positions at depth 2
-```
-
-**Connect4 (test_connect4_seeds.py)**:
-```
-Solved: 9.2 million positions in 238s (12-depth minimax)
-Full storage: 80,965 KB
-Seed storage (10%): 8,097 KB
-Compression ratio: 10x
-Layer 1: Depth 4 wave = efficiency 353
-```
-
-**Key Insight**: Compression ratio varies by game structure:
-- Chess: 7,453x (many symmetries, tablebases provide dense boundary)
-- Connect4: 10x (minimax requires storing more decision points)
-- Sudoku: 2.4x (single-path solutions, minimal branching)
-
-This validates the seed-based storage hypothesis - positions
-can be reconstructed from seeds + paths, enabling massive compression.
-
-### 2026-01-23 (Update 13) - CHESS CONSOLIDATION & TEST DIRECTORY
-- **CONSOLIDATED** `chess_targeted.py` into `chess.py`
-  - `ChessGame` now accepts optional `target_material` parameter
-  - When targeting enabled: `is_boundary()`, `get_successors()`, `get_predecessors()` filter by material
-  - Added `generate_target_boundary_seeds()` and `generate_source_positions()` methods
-  - Added `is_target_material()` and `is_source_material()` helpers
-  - Filter statistics tracking: `wrong_material_filtered`, `target_material_found`, etc.
-- **DEPRECATED** `chess_targeted.py` - marked for deletion
-  - `TargetedChessGame` now a deprecated wrapper class in chess.py
-  - Shows deprecation warning when instantiated
-  - All imports should migrate to `from holos.games.chess import ChessGame`
-- **UPDATED** dependent files:
-  - `full_search.py` - imports from chess.py, uses `ChessGame(target_material=...)`
-  - `test_seed_compression.py` - imports from chess.py
-  - `games/__init__.py` - exports consolidated from chess.py
-- **MOVED** test files to `tests/` directory:
-  - `demo.py`, `run_targeted_kqrr.py`, `run_targeted_subprocess.py`
-  - `test_connect4.py`, `test_connections.py`, `test_equivalence.py`
-  - `test_full_solve.py`, `test_goal_targeting.py`, `test_integration.py`
-  - `test_osmosis.py`, `test_sudoku.py`
-- **FILES FOR DELETION**:
-  - `games/chess_targeted.py` - consolidated into chess.py
-
-### 2026-01-23 (Update 11) - OSMOSIS MODE
-- **Added** Osmosis mode - maximally careful bilateral exploration
-  - New `SearchMode.OSMOSIS` enum value
-  - New `solve_osmosis()` method in HOLOSSolver
-  - `_score_state_for_osmosis()` for intelligent state selection
-  - `_osmosis_expand_forward_single()` and `_osmosis_expand_backward_single()`
-- **Key Innovation**: Expands ONE state at a time from either frontier
-  - Scores based on: solved neighbors, forced moves, connection potential
-  - Balance factor maintains bidirectional progress (like pressure differential)
-  - Naturally follows "information gradient" from known to unknown
-- **Performance**: 30x faster than wave mode on constrained problems
-  - Sudoku (8 empty cells): 0.72s vs 22.55s (wave)
-  - Osmosis: 9 steps vs 8,202 expansions
-- **BUGFIX**: Added reverse forward propagation for single-player games
-  - If child is solved, parent should also be marked solved
-  - Required for Sudoku where any path to solution counts
-- **Added** `test_osmosis.py` - Comprehensive osmosis test suite
-  - Sudoku near-complete and easy tests
-  - Connect4 position test
-  - Wave vs Osmosis comparison
-- **Physical Analogy**: Like osmosis/diffusion - flow driven by concentration gradient
-  - Lightning = electrical discharge (fast, direct)
-  - Wave = water waves (uniform expansion)
-  - Crystal = crystallization (nucleation growth)
-  - Osmosis = diffusion (selective, gradient-driven)
-
-### 2026-01-23 (Update 10) - SUDOKU SOLVER
-- **Added** `games/sudoku.py` - Full Sudoku puzzle solver
-  - `SudokuState`: 9x9 grid with constraint checking
-  - `SudokuValue`: Solved/Unsolved value wrapper
-  - `SudokuFeatures`: Fill profiles, candidate analysis
-  - `SudokuGame`: Full GameInterface implementation
-  - Solved grids as boundary (no external tablebase)
-  - MRV heuristic for move ordering
-  - Lightning = naked singles (forced moves)
-- **Added** `test_sudoku.py` - Comprehensive test suite
-  - Basic state operations (grid, candidates, conflicts)
-  - Game interface tests (successors, predecessors, boundary)
-  - Feature extraction tests
-  - Lightning probe tests
-  - Bidirectional solve tests
-- **Updated** `games/__init__.py` with Sudoku exports
-- **Key insight**: Sudoku has asymmetric branching
-  - Forward: ~1-9 constrained successors
-  - Backward: 81 predecessors (remove any digit)
-  - Lightning (naked singles) often solves directly
-
-### 2026-01-23 (Update 9) - FORWARD EXPANSION FIX
-- **BUGFIX**: Forward frontier was collapsing to 0 after lightning solved start
-  - Problem: `_expand_forward()` was skipping children of solved positions
-  - Solution: Always expand children, even for already-solved positions
-  - Now forward frontier grows properly: 1 → 4 → 25 → 121 → 568
-- **Result**: Bidirectional search now creates connections (49 in test)
-  - Previously: 0 connections (forward wave died immediately)
-  - Now: Proper bidirectional meeting of waves
-
-### 2026-01-22 (Update 8) - CONNECT-4 & CRYSTAL INSIGHTS
-- **Added** `games/connect4.py` - Full Connect-4 implementation
-  - `C4State`: Compact state with canonical (mirror-folded) hashing
-  - `C4Value`: Game-theoretic value wrapper
-  - `C4Features`: Equivalence features (counts, threats, heights)
-  - `Connect4Game`: Full GameInterface implementation
-  - Terminal positions as boundary (no external tablebase needed)
-  - Center-first move ordering for efficiency
-- **Added** `test_connect4.py` - Comprehensive test suite
-  - Basic interface tests (moves, hashing, mirrors)
-  - Successor/predecessor generation tests
-  - Features and equivalence tests
-  - Lightning probe tests
-  - Small solve: 8,615 positions in 3.7s
-  - Medium solve: 1,094,767 positions in 255s
-  - **Confirms**: X-Win (first player wins with perfect play)
-- **Updated** `games/__init__.py` with Connect4 exports
-- **Added** Phase timing metrics to HOLOSSolver
-  - `lightning_time`, `wave_time`, `crystal_time`, `propagation_time`
-- **Added** `spine_as_boundary` option to solver
-  - When enabled, solved spines seed the backward wave
-- **Documented** insights from `c4_crystal.py`:
-  - Crystallization phase separation
-  - Crystal front tracking concept
-  - Natural metaphors (river deltas, Lichtenberg figures)
-  - Spine-as-boundary enhancement
-
-### 2026-01-22 (Update 7) - MEMORY MANAGEMENT & CACHING ANALYSIS
-
-### 2026-01-22 (Update 7) - MEMORY MANAGEMENT & CACHING ANALYSIS
-- **CRITICAL FIX**: Backward frontier explosion (12.7M → 38GB crash)
-- **Added** `max_frontier_size` parameter to HOLOSSolver
-  - Hard cap on next_frontier size (default 2M)
-  - Prevents unbounded memory growth
-- **Added** `max_backward_depth` parameter to HOLOSSolver
-  - Limits backward expansion depth from boundary
-  - For KQRRvKQR targeting: use depth=1 (7→8 piece only)
-- **Added** `backward_depth` tracking dict in solver
-  - Tracks depth of each backward position from boundary
-- **Added** `max_equiv_class_size` (default 10K)
-  - Prevents memory explosion from huge equivalence classes
-- **Added** memory cleanup in crystallization
-  - Clears parent tracking when solved > 5M (saves memory)
-- **Added** new stats: `frontier_capped`, `depth_limited`
-- **Created** `MEMORY_AND_CACHING_ANALYSIS.md` with:
-  - Root cause analysis of memory explosion
-  - Design for disk-backed frontiers
-  - Design for persistent incremental cache
-  - Conservative caching principles
-- **Tested**: 838K positions solved with ~1.4GB memory (was 38GB crash)
-
-**Recommended parameters for targeted KQRRvKQR**:
-```python
-solver = HOLOSSolver(
-    game, max_memory_mb=8000,
-    max_frontier_size=500_000,
-    max_backward_depth=1  # Only 7→8 piece
-)
-```
-
-### 2026-01-22 (Update 6) - CLEAN LAYER SEPARATION
-- **MAJOR**: Renamed `core.py` to `holos.py` (THE ENGINE)
-  - Clarifies that this is the algorithm itself, used by ALL layers
-  - Not a "game" but the search engine that games use
-- **MOVED** `ModeDecision` and `ModeSelector` to `games/seeds.py`
-  - These are Layer 1 concerns (tactical mode selection)
-- **CREATED** `games/strategy.py` for Layer 2
-  - `GoalCondition` (re-exported from holos.py)
-  - `StrategyGame`: Meta-game for goal/budget allocation
-  - `StrategyState`: Budget allocation across goals
-  - `StrategyValue`: Completeness and efficiency metrics
-- **Updated** all imports from `holos.core` to `holos.holos`
-- **Key Architectural Clarity**:
-  - holos.py = THE ENGINE (bidirectional search algorithm)
-  - games/chess.py = Layer 0 (CAPABILITIES - what moves exist)
-  - games/seeds.py = Layer 1 (TACTICS - which seeds to expand, what mode)
-  - games/strategy.py = Layer 2 (STRATEGY - which goals to pursue)
-  - All layers use HOLOSSolver, just with different GameInterface implementations
-
-### 2026-01-22 (Update 5) - ARCHITECTURAL REFACTOR
-- **MAJOR**: Refactored targeting into proper Layer 0/1/2 separation
-  - Layer 0 (chess.py): Material CAPABILITIES (get_material_string, get_parent_materials, enumerate_material_positions)
-  - Layer 1/2 (core.py): GoalCondition for targeting STRATEGY
-  - Solver: goal parameter for filtered solving
-- **Added** `GoalCondition` dataclass to core.py
-  - `target_signatures`: Set of valid boundary signatures
-  - `early_terminate_misses`: Whether to prune non-goal paths
-  - Used by solver.solve(goal=goal)
-- **Added** material utilities to chess.py (Layer 0):
-  - `get_material_string(state)` → "KQRRvKQR"
-  - `get_parent_materials(target)` → list of 8-piece parents
-  - `enumerate_material_positions(material, syzygy, count)` → positions
-- **Added** `get_signature()` method to GameInterface
-  - ChessGame.get_signature() returns material string
-  - Enables goal matching in solver
-- **Added** `goal_filtered` stat to track filtered boundary states
-- **Added** `test_goal_targeting.py` with 4 tests (all passing)
-- **DEPRECATED** `chess_targeted.py` - superseded by GoalCondition API
-  - Still functional for backward compatibility
-  - New code should use GoalCondition pattern
-
-### 2026-01-22 (Update 4)
-- **Added** `games/chess_targeted.py` - Targeted material search
-  - `TargetedChessGame`: Filters for specific material configurations
-  - Early termination on captures to wrong material
-  - Auto-generates valid 8-piece source materials
-- **Added** `run_targeted_kqrr.py` - In-process batched search
-- **Added** `run_targeted_subprocess.py` - Subprocess-isolated search
-  - Memory isolation between batches (recommended for large searches)
-  - Reproducible from saved seeds
-- **Tested** KQRRvKQR targeted search:
-  - 3.2M positions solved across 3 batches
-  - 483 target material positions found
-  - 340 wrong material positions filtered
-
-### 2026-01-22 (Update 3)
-- **Fixed** `generate_boundary_seeds()` to respect `min_pieces` setting
-  - Was hardcoded to generate 7-piece positions
-  - Now uses `self.min_pieces` for configurable boundary
-- **Added** `solver.reset()` method for fresh starts
-  - Clears all state (frontiers, seen sets, solved, connections, stats)
-  - Use when solving independent problems with same solver instance
-- **Added** frontier size sampling to prevent memory explosion
-  - `_expand_forward()` and `_expand_backward()` now sample if frontier > 500k
-  - Graceful degradation instead of hard memory crash
-- **Added** `test_integration.py` with 5 comprehensive tests:
-  - Boundary seed generation
-  - Solver reset
-  - Hologram merge with deduplication
-  - Connection detection
-  - Crystallization
-
-### 2026-01-23 (Update 12) - Full Search Infrastructure & Seed Compression
-
-**Major additions for production-scale exhaustive searches:**
-
-#### New Files
-
-- **`full_search.py`** (~400 lines): Extends session.py and storage.py for large-scale searches
-  - `DiskBackedHologram(Hologram)`: Writes to disk in chunks, prevents RAM exhaustion
-  - `FullSearchSession(SessionManager)`: Subprocess isolation, resume capability
-  - `FullSearchState(SessionState)`: Extended state for batch tracking
-
-- **`cli.py`** (~200 lines): Unified command-line interface
-  - `python -m holos.cli test` - Quick verification run
-  - `python -m holos.cli run` - Full production run
-  - `python -m holos.cli status` - Check progress
-
-- **`__main__.py`**: Enables `python -m holos`
-
-- **`test_seed_compression.py`** (~300 lines): Tests seed-based storage compression
-
-#### Architecture Integration
-
-```
-full_search.py EXTENDS (not replaces):
-├── DiskBackedHologram extends Hologram (storage.py)
-│   - Inherits: query(), add_spine(), merge()
-│   - Adds: flush_to_disk(), total_count(), chunk management
-│
-├── FullSearchSession extends SessionManager (session.py)
-│   - Inherits: save(), run_round(), phase management
-│   - Adds: subprocess isolation, disk monitoring, batch tracking
-│
-└── Uses HOLOSSolver directly (holos.py)
-    - No parallel implementation
-    - Standard SeedPoint, SearchMode interface
-```
-
-#### Seed Compression Hypothesis
-
-**The Core Insight** (from SeedFrontierMapping):
-```
-Instead of storing N solved positions, store K seeds that regenerate them.
-Compression: N/K (potentially 1000x-8000x)
-```
-
-**Current Status**:
-- `SeedFrontierMapping` defined in storage.py but NOT actively used
-- `full_search.py` stores all positions (DiskBackedHologram)
-- `test_seed_compression.py` created to validate the hypothesis
-
-**Key Questions to Test**:
-1. What % of solved positions are reconstructable from seeds alone?
-2. Are connection points (where waves meet) optimal seeds?
-3. What's the actual compression ratio for KQRRvKQR?
-
-**Test Command**:
-```bash
-python holos/test_seed_compression.py
-python holos/test_seed_compression.py --connections
-```
-
-#### CLI Commands
-
-**Test Run** (~5 minutes):
-```bash
-python -m holos.cli test --target KQRRvKQR --batches 5 --memory 2500
-```
-
-**Full Run** (hours/days):
-```bash
-python -m holos.cli run --target KQRRvKQR --backward-seeds 5000 --forward-seeds 200 --memory 3500
-```
-
-**Status Check**:
-```bash
-python -m holos.cli status --target KQRRvKQR
-```
-
-#### Documentation Corrections
-
-- **chess_targeted.py is NOT deprecated** - actively used by full_search.py, run_targeted_*.py
-- Updated __init__.py to export: DiskBackedHologram, FullSearchSession, FullSearchState
-- Version bumped to 0.1.1
-
----
-
-### 2026-01-22 (Update 2)
-- Added detailed Crystallization Algorithm documentation (consistent with fractal_holos3.py)
-- Added Multi-Round Flow Details section explaining:
-  - Solver state persistence (incremental design)
-  - Hologram merging with deduplication
-  - Memory considerations for backward wave explosion
-- Clarified mode selection as Layer 1 dimension (SeedSpec includes mode)
-- Documented known placeholder: `feature_success` (declared but unused)
-- Verified spine checkpoints: NOT cruft - used for O(1) move lookup
-
-### 2026-01-22 (Initial)
-- Created comprehensive LOCUS.md with complete manifest
-- All 7 fixes from COMPARISON_WITH_FRACTAL_HOLOS3.md applied
-- All equivalence tests passing
-- Added `generate_boundary_seeds()` to ChessGame
-- Added `apply_move()` to GameInterface and ChessGame
-- Full file scan with design decision extraction
+See [CHANGELOG.md](CHANGELOG.md) for full details on each update.
 
 ---
 

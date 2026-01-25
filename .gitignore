@@ -4,5 +4,13 @@
 *.rtbw
 *.emd
 *.zip
-*.pyc
 syzygy/
+
+# Python caches (avoid noisy diffs)
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Windows reserved device name that can appear as a phantom path and break `git add .`
+**/nul
+**/NUL
