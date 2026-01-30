@@ -1,0 +1,651 @@
+================================================================================
+THE 10 IMMORTAL PATTERN TYPES - GRAPH STRUCTURES
+================================================================================
+
+================================================================================
+IDENTITY (Id)
+Functor: Id (Identity Functor)
+================================================================================
+
+GRAPH PATTERN:
+    +---+
+    | a |--+
+    +---+  |
+      ^----+
+    (self-loop)
+            
+ALGEBRAIC: f: A -> A where f = id
+
+WHY "IDENTITY FUNCTOR"?
+
+In category theory, the identity functor Id: C -> C maps:
+  - Every object A to itself: Id(A) = A
+  - Every morphism f to itself: Id(f) = f
+
+A self-loop rule a -> a does exactly this:
+  - Token a maps to token a
+  - The transition is trivial (no change)
+
+RIGOR: ***** (Perfect analogy)
+This IS the identity morphism in the category of tokens.
+            
+
+PROGRAMMING: x => x, lambda x: x, pass-through
+SURVIVAL: Always survives - does nothing, costs nothing
+
+================================================================================
+UNARY FLOW (Fl)
+Functor: Hom(A,B) (Hom Functor)
+================================================================================
+
+GRAPH PATTERN:
+    +---+     +---+
+    | a | --> | b |
+    +---+     +---+
+    (directed edge)
+            
+ALGEBRAIC: f: A -> B (single morphism)
+
+WHY "HOM FUNCTOR"?
+
+In category theory, Hom(A,B) is the set of all morphisms from A to B.
+A single rule a -> b is ONE ELEMENT of this Hom set.
+
+More precisely: the rule IS a morphism in the category.
+The "Hom functor" label means "this is a basic morphism."
+
+RIGOR: ****o (Good analogy)
+The rule is a morphism. Calling it "Hom functor" is slightly loose -
+it's an element of Hom(a,b), not the functor Hom(-,-) itself.
+But in the context of "what kind of thing is this?", it's accurate.
+            
+
+PROGRAMMING: map(f), pipe, transform, state transition
+SURVIVAL: Survives if endpoints are active and it mediates real transitions
+
+================================================================================
+2-CYCLE (Symmetric Pair) (C2)
+Functor: Aut_2 / Iso (Order-2 Automorphism / Isomorphism)
+================================================================================
+
+GRAPH PATTERN:
+    +---+     +---+
+    | a | <=> | b |
+    +---+     +---+
+    (bidirectional: a->b AND b->a)
+            
+ALGEBRAIC: f: A -> B, g: B -> A where gof = id_A, fog = id_B
+
+WHY "ISOMORPHISM" or "Aut_2"?
+
+Two rules a->b and b->a together form an ISOMORPHISM:
+  - You can go from a to b
+  - You can go back from b to a
+  - Round trip = identity (in terms of reachability)
+
+Aut_2 means "order-2 automorphism" - applying twice returns to start:
+  f(f(x)) = x  (like NOT(NOT(x)) = x)
+
+RIGOR: ***** (Excellent analogy)
+This IS an isomorphism in the graph category.
+The pair (f, f^-1) satisfies the isomorphism axioms exactly.
+            
+
+PROGRAMMING: encode/decode, encrypt/decrypt, toggle, swap
+SURVIVAL: Very stable - mutual reinforcement between the two rules
+
+================================================================================
+3-CYCLE (C3)
+Functor: Aut_3 (Order-3 Automorphism)
+================================================================================
+
+GRAPH PATTERN:
+        +---+
+        | a |
+        +---+
+       /         +---+   +---+
+    | c | -> | b |
+    +---+   +---+
+    (triangle)
+            
+ALGEBRAIC: f: A->B, g: B->C, h: C->A where hogof = id (mod 3)
+
+WHY "Aut_3" (Order-3 Automorphism)?
+
+A 3-cycle implements a Z/3Z group action:
+  - Apply once: a -> b
+  - Apply twice: a -> b -> c
+  - Apply three times: a -> b -> c -> a (back to start!)
+
+This is like the cube roots of unity: omega^3 = 1
+Or RGB color rotation: R -> G -> B -> R
+
+RIGOR: ****o (Good analogy)
+The cycle does form a Z/3Z action on the three tokens.
+"Automorphism" is slightly loose since it's a permutation of 3 objects,
+not an automorphism of a single object. But the group structure is exact.
+            
+
+PROGRAMMING: state = (state + 1) % 3, round-robin, traffic light
+SURVIVAL: Very stable - all three rules reinforce each other cyclically
+
+================================================================================
+BROADCAST (Fan-out) (Bc)
+Functor: Delta (Delta / Diagonal Functor)
+================================================================================
+
+GRAPH PATTERN:
+           +---+
+           | b |
+           +---+
+            ^
+    +---+   |   +---+
+    | a | --+-> | c |
+    +---+   |   +---+
+            v
+           +---+
+           | d |
+           +---+
+    (one source, many targets)
+            
+ALGEBRAIC: Delta(x) = (x, x, x, ...) - diagonal/copy
+
+WHY "DELTA / DIAGONAL FUNCTOR"?
+
+The diagonal functor Delta: C -> CxCx... sends:
+  - Object A to (A, A, A, ...)
+  - Morphism f to (f, f, f, ...)
+
+A broadcast source does exactly this:
+  - One input token
+  - Multiple copies sent to different targets
+  - Same "information" replicated
+
+RIGOR: ***oo (Decent analogy)
+The pattern LOOKS like the diagonal functor's action.
+But it's not literally a functor - it's a subgraph pattern.
+The analogy is structural/visual, not formal.
+            
+
+PROGRAMMING: fork(), multicast, pub/sub publish, tee
+SURVIVAL: Survives if source token is active and targets exist
+
+================================================================================
+COLLECTOR (Fan-in) (Cl)
+Functor: Nabla (Nabla / Codiagonal Functor)
+================================================================================
+
+GRAPH PATTERN:
+           +---+
+           | b |
+           +---+
+            v
+    +---+   |   +---+
+    | a | --+-> | d |
+    +---+   |   +---+
+            ^
+           +---+
+           | c |
+           +---+
+    (many sources, one target)
+            
+ALGEBRAIC: Nabla(x, y, z) = x + y + z - codiagonal/merge
+
+WHY "NABLA / CODIAGONAL FUNCTOR"?
+
+The codiagonal Nabla: C+C+... -> C sends:
+  - Multiple copies to a single object
+  - It's the "folding" operation that merges branches
+
+A collector target does exactly this:
+  - Multiple input tokens
+  - All flow into one target
+  - Information merges/aggregates
+
+RIGOR: ***oo (Decent analogy)
+Same caveat as broadcast - it's a structural pattern that
+resembles what the codiagonal does, not a literal functor.
+            
+
+PROGRAMMING: reduce(), merge(), join(), aggregate
+SURVIVAL: Survives if target token is a stable attractor
+
+================================================================================
+BRIDGE (Natural Transformation) (Br)
+Functor: eta: F => G (Natural Transformation)
+================================================================================
+
+GRAPH PATTERN:
+    Region 1        Region 2
+    +---+           +---+
+    | a | --------> | c |
+    +---+           +---+
+      |               |
+    +---+           +---+
+    | b |           | d |
+    +---+           +---+
+    (connects separate clusters)
+            
+ALGEBRAIC: eta_X: F(X) -> G(X) - component at X
+
+WHY "NATURAL TRANSFORMATION"?
+
+A natural transformation eta: F => G provides a systematic way
+to transform one functor's output to another's.
+
+A bridge rule connects two otherwise separate regions:
+  - Without it, regions are disconnected
+  - It provides a "translation" between them
+  - Like an adapter or gateway
+
+RIGOR: **ooo (Loose analogy)
+This is the weakest mapping. Natural transformations are very
+specific mathematical objects. A "bridge" is just a graph pattern.
+The analogy is: both "connect different structures systematically."
+            
+
+PROGRAMMING: adapter pattern, API gateway, protocol translator
+SURVIVAL: Survives if both regions are active and need connection
+
+================================================================================
+SYMMETRIC PAIR (Sy)
+Functor: Iso (Isomorphism Functor)
+================================================================================
+
+GRAPH PATTERN:
+    +---+     +---+
+    | a | <=> | b |
+    +---+     +---+
+    (same as 2-cycle, but emphasized as equivalence)
+            
+ALGEBRAIC: A ~= B (isomorphic objects)
+
+WHY "ISOMORPHISM"?
+
+Same as 2-cycle. The emphasis here is on the EQUIVALENCE:
+  - a and b are "the same" up to relabeling
+  - You can substitute one for the other
+  - Information is preserved both ways
+
+RIGOR: ***** (Exact)
+This IS an isomorphism. No analogy needed.
+            
+
+PROGRAMMING: JSON.stringify/parse, serialize/deserialize
+SURVIVAL: Very stable due to mutual reinforcement
+
+================================================================================
+SERIAL COMPOSE (Cs)
+Functor: o (Composition)
+================================================================================
+
+GRAPH PATTERN:
+    +---+     +---+     +---+
+    | a | --> | b | --> | c |
+    +---+     +---+     +---+
+    (chain)
+            
+ALGEBRAIC: g o f: A -> C (composition of f: A->B and g: B->C)
+
+WHY "COMPOSITION"?
+
+Composition is THE fundamental operation in category theory:
+  - Given f: A->B and g: B->C
+  - You get gof: A->C
+
+A chain of rules implements exactly this:
+  - Rule 1: a->b
+  - Rule 2: b->c
+  - Combined effect: a can reach c
+
+RIGOR: ***** (Exact)
+This IS composition of morphisms. The sieve implements it directly.
+            
+
+PROGRAMMING: pipe, chain, middleware, Unix pipes |
+SURVIVAL: Survives if all links in the chain are active
+
+================================================================================
+CONSERVATION (Balanced) (Cm)
+Functor: Ker/Coker (Conservation Functor)
+================================================================================
+
+GRAPH PATTERN:
+         in=3
+    a ----->
+    b -----> [X] -----> d    out=3
+    c ----->     -----> e
+                -----> f
+    (sum of inputs = sum of outputs)
+            
+ALGEBRAIC: sum inputs = sum outputs (Kirchhoff-like)
+
+WHY "CONSERVATION / KERNEL"?
+
+In algebra, the kernel of a map is what gets "conserved" (mapped to 0).
+Conservation laws (Noether currents) have div(J) = 0.
+
+A balanced node where in-degree = out-degree:
+  - What flows in equals what flows out
+  - No accumulation, no deficit
+  - Like charge conservation or mass balance
+
+RIGOR: **ooo (Loose analogy)
+The connection to Ker/Coker is metaphorical.
+The graph pattern resembles conservation, but isn't literally a kernel.
+Better to just say "balanced flow" than claim it's a functor.
+            
+
+PROGRAMMING: producer-consumer balance, connection pool
+SURVIVAL: Survives if system reaches equilibrium
+
+================================================================================
+RIGOR ASSESSMENT: How Academic Are These Mappings?
+================================================================================
+
+TIER 1: EXACT CORRESPONDENCES (*****)
+=====================================
+These ARE the mathematical objects, not analogies:
+
+- IDENTITY (Id): A self-loop IS the identity morphism. Period.
+- ISOMORPHISM (Iso): A bidirectional pair IS an isomorphism.
+- COMPOSITION (o): A chain IS morphism composition.
+
+These would pass peer review as correct mathematical statements.
+
+
+TIER 2: STRONG ANALOGIES (****o)
+=================================
+These capture the essential structure accurately:
+
+- HOM (Hom): A rule IS an element of Hom(a,b). Calling it "the Hom functor"
+  is slightly loose, but the intuition is correct.
+
+- Aut_2, Aut_3: Cycles DO form group actions. The Z/nZ structure is exact.
+  "Automorphism" is slightly loose (it's a permutation, not an automorphism
+  of a single object), but the group theory is sound.
+
+
+TIER 3: STRUCTURAL ANALOGIES (***oo)
+=====================================
+These look like the functor patterns but aren't literally functors:
+
+- DELTA (Delta): A high-out-degree source LOOKS LIKE the diagonal functor.
+  But it's a graph pattern, not a functor between categories.
+
+- NABLA (Nabla): Same issue - it's the SHAPE of codiagonal, not the functor.
+
+These are useful mnemonics but wouldn't survive formal scrutiny.
+
+
+TIER 4: LOOSE METAPHORS (**ooo)
+================================
+These are suggestive but quite loose:
+
+- BRIDGE/NAT: "Connects different regions" vaguely resembles what
+  natural transformations do, but the formal connection is weak.
+
+- CONSERVATION/KER: The balanced-flow pattern is like conservation laws,
+  but calling it "kernel" is a stretch.
+
+These are pedagogically useful but mathematically imprecise.
+
+
+PRACTICAL RECOMMENDATION:
+=========================
+For communication: Use the names. They convey intuition.
+For formal work: Stick to graph-theoretic terminology:
+  - "Bidirectional edge" not "isomorphism"
+  - "High out-degree node" not "delta functor"
+  - "3-cycle" not "Aut_3"
+
+The sieve produces GRAPHS. Functor labels are INTERPRETATIONS.
+
+
+================================================================================
+THE 8th TOKEN: What Do the Extra 14 Rules Mean?
+================================================================================
+
+WHAT ARE THE 14 EXTRA RULES?
+============================
+With uniform random (n=7 tokens): 42 rules = 7 x 6
+With thermal noise (n=8 tokens): 56 rules = 8 x 7
+
+The 14 extras are ALL rules involving token 7:
+  - 7 rules FROM others TO token 7: (0,)->(7,), (1,)->(7,), ..., (6,)->(7,)
+  - 7 rules FROM token 7 TO others: (7,)->(0,), (7,)->(1,), ..., (7,)->(6,)
+
+Token 7 is FULLY CONNECTED to all other tokens.
+
+
+WHAT FUNCTOR TYPES ARE THESE?
+=============================
+
+Rules TO token 7 (Collector pattern):
+  (0,)->(7,)  (1,)->(7,)  (2,)->(7,)  (3,)->(7,)  (4,)->(7,)  (5,)->(7,)  (6,)->(7,)
+  Token 7 has in-degree 7 -> This is a COLLECTOR (Nabla)
+  Token 7 receives from EVERYONE
+
+Rules FROM token 7 (Broadcast pattern):
+  (7,)->(0,)  (7,)->(1,)  (7,)->(2,)  (7,)->(3,)  (7,)->(4,)  (7,)->(5,)  (7,)->(6,)
+  Token 7 has out-degree 7 -> This is a BROADCASTER (Delta)
+  Token 7 sends to EVERYONE
+
+
+COMBINED: Token 7 is a HUB (*)
+==============================
+Token 7 is connected TO and FROM every other token.
+This makes it a CENTRAL HUB - the highest-connectivity node.
+
+    0 <--> 7 <--> 1
+    ^    |    ^
+    6 <--> 7 <--> 2
+    v    |    v
+    5 <--> 7 <--> 3
+         |
+         4
+
+In category theory terms:
+  - Token 7 looks like a PRODUCT/COPRODUCT object
+  - Everything can go through it
+  - It's like a "terminal + initial" object combined
+
+
+DOES THIS CHANGE THE OTHER 42?
+==============================
+The original 42 rules (between tokens 0-6) are UNCHANGED in structure.
+But their ROLE changes:
+
+BEFORE (7 tokens):
+  - Every token is "equal" - symmetric graph K_7
+  - No special center
+  - All rules have similar importance
+
+AFTER (8 tokens with central hub):
+  - Token 7 is special (highest connectivity)
+  - Original rules are now "peripheral"
+  - Token 7 mediates many paths: a->7->b is often shorter than a->...->b
+
+The original isomorphisms (e.g., 0<->1) still exist but are now
+SUPPLEMENTED by paths through 7 (0<->7<->1).
+
+
+PHYSICAL ANALOGY:
+================
+Token 7 is like the HIGGS FIELD:
+  - Connected to everything
+  - Mediates interactions between all particles
+  - A "universal coupler"
+
+Or like a ROUTER in a network:
+  - All traffic CAN go through it
+  - It's the central hub
+  - Direct peer-to-peer still works, but hub is always available
+
+
+================================================================================
+EPHEMERAL RULES: What Dies and Why?
+================================================================================
+
+In a 7-token fully-connected system, ALL 42 rules can be immortal.
+But in LARGER systems or with DIFFERENT dynamics, some rules die.
+
+Let's experimentally find which rules are most likely to die.
+
+
+--- 10 tokens (max 90 rules) ---
+  Always survive: 0 rules
+  Often die (< 50% survival): 90 rules
+  Never seen: 0 rules
+
+--- 15 tokens (max 210 rules) ---
+  Always survive: 0 rules
+  Often die (< 50% survival): 209 rules
+  Never seen: 1 rules
+
+--- 20 tokens (max 380 rules) ---
+  Always survive: 0 rules
+  Often die (< 50% survival): 356 rules
+  Never seen: 24 rules
+
+
+WHY DO RULES DIE?
+=================
+
+1. ISOLATION: Rules whose endpoints don't connect to active regions
+   - If token 15 is never visited, rules involving 15 decay
+
+2. ASYMMETRY: One-way rules without reinforcement
+   - a->b survives better if b->a also exists (mutual reinforcement)
+   - Isolated one-way rules decay
+
+3. COMPETITION: Rules compete for amplitude
+   - Strongly-reinforced rules "starve out" weakly-reinforced ones
+   - First-mover advantage: early-activated rules stay strong
+
+4. PHASE CANCELLATION: Destructive interference
+   - If multiple paths lead to same rule with opposite phases, it cancels
+   - Rules in "phase-matched" cycles survive; others cancel
+
+5. RANDOM FLUCTUATION: Sometimes just bad luck
+   - Initial conditions matter
+   - Same rule might survive in one trial, die in another
+
+
+THE EPHEMERAL FUNCTOR TYPES:
+===========================
+Rules that tend to die:
+  - ISOLATED FLOWS: a->b where a and b aren't connected to much else
+  - LONG CHAINS: a->b->c->d... where middle links can break
+  - WEAK BRIDGES: connections between sparse regions
+
+Rules that tend to survive:
+  - SYMMETRIC PAIRS: mutual reinforcement
+  - SHORT CYCLES: 2-cycles and 3-cycles are very stable
+  - HUB CONNECTIONS: anything connected to high-degree nodes
+
+
+================================================================================
+SCALING ANALYSIS: Can We Reach N Tokens?
+================================================================================
+
+QUESTION: Why did thermal noise give us 8 tokens instead of 7?
+
+ANSWER: It's not about "unlocking" tokens, it's about STATISTICS.
+
+The code does:
+    token = int(random_sample * n)
+
+For uniform random in [0,1):
+    - Tokens 0-6 are equally likely
+    - Token 7 would require sample >= 7/7 = 1.0, which never happens
+
+For thermal (Boltzmann) distribution:
+    - Has heavier tails
+    - Occasionally produces values that, when scaled, map to higher indices
+    - The bug/feature: int(sample * n) can exceed n-1 for some distributions
+
+THIS IS A CODE ARTIFACT, not a fundamental physics result.
+
+
+Testing token index distributions for n=7:
+--------------------------------------------------
+
+Uniform:
+  Max token index: 6
+  Distinct tokens: 7
+
+Thermal (clamped):
+  Max token index: 7
+  Distinct tokens: 8
+  Overflow (>= 7): 647 (6.47%)
+
+Thermal (unbounded):
+  Max token index: 13
+  Distinct tokens: 14
+  Overflow (>= 7): 647 (6.47%)
+
+
+FUNDAMENTAL LIMITS:
+==================
+
+Q: Is there a fundamental limit to how many tokens can be stable?
+
+A: YES, but it's not about randomness. It's about:
+
+1. CONNECTIVITY REQUIREMENTS
+   For n tokens to all be immortal, they need enough rules connecting them.
+   Random initialization with k initial rules leaves some tokens isolated
+   if k < n (roughly).
+
+2. AMPLITUDE DILUTION
+   Total amplitude is conserved (modulo damping).
+   With more tokens/rules, amplitude spreads thinner.
+   Weak rules fall below threshold and die.
+
+3. SYMMETRY BREAKING
+   In large systems, random initialization breaks symmetry.
+   Some tokens get strong early; others starve.
+   This is spontaneous symmetry breaking.
+
+4. COMPUTATIONAL LIMITS
+   The sieve evolution takes time O(states x rules x steps).
+   Large systems converge slower or not at all.
+
+
+REACHING N TOKENS:
+=================
+
+To get N stable tokens, you need:
+
+1. INITIALIZE ALL N: Explicitly inject states for all N tokens
+2. SUFFICIENT RULES: At least ~N rules to keep everyone connected
+3. ENOUGH TIME: Let the system equilibrate
+4. FAVORABLE INITIALIZATION: Symmetric or balanced starting conditions
+
+The randomness source doesn't fundamentally limit N.
+It's the INITIALIZATION and DYNAMICS that matter.
+
+Example: To guarantee 100 stable tokens:
+  - Inject all 100 tokens with equal amplitude
+  - Inject a spanning set of rules (at least 99, forming a connected graph)
+  - Evolve until stable
+  - Result: potentially all 100 can survive
+
+The "42 immortals" result is specific to:
+  - n=7 tokens (hard-coded in the test)
+  - Sparse random initialization
+  - Specific evolution parameters
+
+It's not a universal constant; it's 7x6 = nx(n-1) for the chosen n.
+
+
+--------------------------------------------------
+DEMONSTRATION: Explicit N-token initialization
+--------------------------------------------------
+
+n=10: 27/90 rules survive (30.0%), 10/10 tokens active
+
+n=15: 41/210 rules survive (19.5%), 15/15 tokens active
+
+n=20: 58/380 rules survive (15.3%), 20/20 tokens active

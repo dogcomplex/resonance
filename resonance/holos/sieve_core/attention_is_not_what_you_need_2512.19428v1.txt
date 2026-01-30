@@ -1,0 +1,657 @@
+﻿
+arXiv:2512.19428v1
+[cs.LG]
+22 Dec 2025
+
+
+
+Attention Is Not What You Need: Grassmann Flows as an Attention-Free Alternative for
+Sequence Modeling
+
+ZHANG CHONG
+
+
+Abstract
+Self-attention has become the de facto primitive for modern sequence models.  It is often implicitly assumed that strong natural language performance requires attending over all token pairs via a dense or approximate attention mechanism. In this paper we question that assumption.
+We  reinterpret  self-attention  as  a  particular  instance  of  tensor  lifting:   a  hidden  vector is mapped into a high-dimensional space of pairwise interactions, and learning proceeds by constraining this lifted tensor through gradient descent.  This lifting is extremely expressive but also dificult to trace mathematically; across many layers and heads, it becomes almost impossible to describe the model’s behavior with a small family of explicit invariants. From this perspective, a central source of “uninterpretability” in large Transformer models is not merely their size, but the fact that their core operation is a high-dimensional tensor lift whose global effect is analytically opaque.
+As a contrasting design, we propose an attention-free sequence model built around Grassmann flows. Instead of forming an L×L attention matrix, we (i) reduce token states to a low-dimensional space, (ii) interpret local token pairs as two-dimensional subspaces on a Grassmann manifold Gr(2,r), (iii) embed these subspaces via Plu¨cker coordinates into a finite-dimensional projective space, and (iv) fuse the resulting geometric features back into the hidden states through a gated mixing block. Information flows through the sequence not by explicit pairwise weights, but by controlled deformations of low-rank subspaces across layers and multi-scale local windows.
+We evaluate this Causal Grassmann architecture on language modeling (Wikitext-2) and natural language inference (SNLI). On Wikitext-2, a purely Grassmann-based language model with  13–18M  parameters  achieves  validation  perplexities  within  10–15%  of  a  size-matched Transformer baseline.  On SNLI, a Grassmann-based classification head on top of DistilBERT slightly outperforms a Transformer head (best validation accuracy 0.8550 vs. 0.8545; test accuracy 0.8538 vs. 0.8511).  Complexity analysis shows that our mixing mechanism scales linearly in sequence length for fixed rank, in contrast to the quadratic cost of full self-attention.
+Our aim is not to claim that attention is obsolete, but to de-center it. We argue that what one fundamentally needs is not attention itself, but a suficiently expressive geometric evolution mechanism  for hidden representations.  Grassmann flows show that competitive performance can be obtained without any explicit attention weights, while moving the core of the model into a mathematical setting—flows on a finite-dimensional manifold—that is more amenable to explicit invariants and geometric analysis.
+
+
+1	Introduction
+
+Transformers[1, 2, 4, 5] have reshaped sequence modeling by making self-attention the central primitive. Given a sequence of hidden states H ∈ RL×d, self-attention constructs queries, keys, and values
+Q = HWQ,	K = HWK,	V  = HWV
+
+
+1
+
+and computes an L × L matrix of pairwise compatibilities QK⊤, normalized by a softmax to form weights, which are then used to mix the values. This operation is expressive, parallelizable, and has become so ubiquitous that it is often treated as indispensable.
+In this work we take a different stance.  Rather than asking how to make attention cheaper, sparser, or more scalable, we ask a more basic question:
+
+Is explicit self-attention, as an L × L tensor of weights, really the fundamental ingredient we need for strong sequence modeling and reasoning?
+Our answer is “no”.  Attention is one particular way to implement a geometric lifting of the representation; it is not the only way.
+
+1.1	Attention as tensor lifting
+Conceptually, self-attention performs a form of tensor lifting.  From a hidden vector ht  ∈ Rd  at position t, we move to a space that encodes pairwise relations between tokens—an L×L compatibility tensor (per head) and its normalized weights. This lifting has several key properties:
+
+•  It is extremely fine-grained:  every pair of positions (i,j), in every head, in every layer, receives a separate learned weight.
+
+•  It is high-dimensional: the effective state of the model involves not only the token embeddings but also an evolving cloud of attention tensors across layers.
+
+•  It is hard to compress: there is no obvious small set of global invariants that summarize attention behavior across all layers and heads.
+
+From a geometric viewpoint, one can say that self-attention lifts the sequence from a manifold of token representations into a much larger space of pairwise interactions, performs operations there, and then projects back. The success of Transformers suggests that this lifting is powerful; but it also suggests a reason why they are so dificult to interpret:
+
+Claim. A major source of large-model “uninterpretability” is that the tensor lifting performed by attention is mathematically non-traceable:  the degrees of freedom introduced at each layer and head are so large that we lack a small, explicit family of invariants that can describe the global effect of the model.
+In other words, the core of the model lives in a high-dimensional tensor space that resists concise analytic description. Visualizing individual attention maps is possible, but aggregating them into a coherent global picture is not.
+
+1.2	Reasoning as geometry on a semantic manifold
+
+An alternative starting point is to think of reasoning as geometry on a semantic manifold.  At a high level, we take the following view:
+
+1.  Hidden states of a language model can be seen as points on a high-dimensional semantic manifold. Each forward pass traces a path on this manifold.
+
+2.  Attention implements a specific kind of tensor lifting:  it takes the vector ht  and, via dot products with other positions, lifts its information into a space of pairwise interactions to uncover richer local geometry.
+
+
+2
+
+3.  The effectiveness of Transformers relies on how subsequent neural layers align and constrain this lifted geometry. The network learns to restrict the otherwise wild degrees of freedom of attention to flows that support useful behavior.
+
+4.  Reasoning, in this picture, is the process of repeatedly sampling and refining the intrinsic geometric structure of the semantic manifold:  we apply layer after layer of operators that deform the representation in structured ways.
+
+Within this view, the central issue is not whether we lift to a tensor space, but how we design the geometric evolution rule for representations. Self-attention is one such rule, but it is opaque: the lifted tensor is so rich that its long-range behavior becomes extremely hard to trace in mathematical terms.
+This suggests the following sharper philosophical claim:
+Claim.  The non-interpretability of large Transformers is not merely due to depth or parameter count; it is rooted in the choice of tensor lifting as the core operation.  Once we lift to an L × L attention tensor, we have already lost the possibility of a simple, explicit, global description in terms of a small set of invariants.
+If we want a more mathematically structured view of reasoning, we may want to replace this opaque tensor lifting with a more controlled geometric object.
+
+1.3	Grassmann flows as a controlled alternative
+
+This paper explores an alternative design:  instead of lifting to an attention tensor, we lift to a Grassmann manifold. The construction is straightforward:
+
+• We first apply a learned linear map Wred  to reduce ht ∈ Rd  to zt ∈ Rr, with r ≪ d.
+
+•  For local windows (e.g., pairs (t,t + ∆)), we consider the subspace spanned by {zt,zt+∆} in Rr  and treat it as a point on the Grassmann manifold Gr(2,r).
+
+•  Using the Plu¨cker embedding, each such 2D subspace is mapped to a coordinate vector in
+R(2), subject to known algebraic relations.
+r
+
+•  These Plu¨cker coordinates become geometric features that we project back into Rd  and fuse with the original hidden states via learned gating.
+
+The key difference from attention is that we now constrain the model to operate on a manifold with explicit, finite-dimensional structure:
+
+•  The degrees of freedom are controlled by r and the choice of window sizes; there is no L × L tensor.
+
+•  The  representation  of  local  geometry  lives  in  a  space  with  explicit  algebraic  constraints (Grassmannian + Plu¨cker relations)[11, 12, 13, 14].
+
+• We  can  in  principle  study  the  evolution  of  these  Grassmann  features  across  layers  as  a finite-dimensional flow on a manifold.
+
+We  refer  to  the  resulting  architecture  as  a  Causal  Grassmann  model  or  Grassmann  flow. Importantly, it is fully attention-free: there is no step in which we construct an attention matrix or compute softmax-normalized tensor weights.
+
+3
+
+1.4	Contributions
+
+The contributions of this paper are:
+
+1.  A conceptual critique of self-attention. We frame attention as a tensor lifting mechanism and argue that a major source of Transformer uninterpretability is that this lifting is mathe-matically non-traceable: the model’s core computations live in an extremely high-dimensional space with no small set of invariants.
+
+2.  An  attention-free  architecture  based  on  Grassmann  flows.  We propose a Causal Grassmann  mixing  layer  that  (i)  reduces  token  states,  (ii)  encodes  local  pairs  as  points on Gr(2,r) via Plu¨cker coordinates, and (iii) fuses these geometric features back into the representation, all without explicit attention weights.
+
+3.  Empirical evidence on Wikitext-2 and SNLI. We show that a pure Grassmann language model with 13–18M parameters is competitive with a Transformer baseline on Wikitext-2, and that a Grassmann-based NLI head slightly outperforms a Transformer head on SNLI.
+
+4.  Complexity and interpretability analysis.  We analyze the asymptotic complexity of Grassmann mixing and show that, for fixed rank and window sizes, it scales linearly in sequence length, in contrast to the quadratic scaling of full attention.  We also argue that operating on a Grassmann manifold makes it more realistic to define global invariants over the model’s behavior.
+
+Our goal is not to replace attention everywhere, but to open up a different region of the design space: architectures where the core sequence interaction is governed by explicit geometric flows and manifolds rather than opaque tensor lifting.
+
+2	Attention as Geometric Lifting and Grassmann Background
+
+In this section we make the geometric perspective on attention more precise, and introduce the Grassmannian structures that underlie our model.
+
+2.1	Self-attention as geometric lifting
+Given a sequence of hidden states H ∈ RL×d, a standard multi-head self-attention layer computes for each head h:
+
+Qh = HW(h),                                                                           (1) Kh = HW(h),                                                                           (2) Vh = HW(h),                                                                           (3)
+K
+V
+Q
+
+with W(h),W(h),W(h) ∈ Rd×dh   and typically dh = d/Hheads. For each head, we then compute
+Q	K	V
+Ah = softmaxQhKh   ∈ RL×L, h
+⊤
+√
+d
+
+and obtain the head output
+Oh = AhVh ∈ RL×dh.
+
+4
+
+The outputs Oh  are concatenated and linearly projected back to Rd. This process can be interpreted as follows:
+
+•  The linear maps W(h),W(h)  embed the sequence into a representation where dot products encode compatibilities between positions.
+Q	K
+
+•  TrehperemseanttreidxnQothKjuhst ibsyaalvifetctforro,mbuHt biyntiotsasimspialacreitoiefsptoairawlliosethienrtetroakcetniso.ns:   each  token  is
+⊤
+
+•  The softmax and multiplication by Vh  implement a specific geometric operation on this lifted structure, redistributing information according to these compatibilities.
+
+Geometrically, the model is no longer simply moving along a manifold of hidden states; it is also modifying a cloud of pairwise relations whose dimensionality grows quadratically with sequence length.  Across multiple heads and layers, this cloud becomes extremely complex.  While we can visualize individual attention maps, the global behavior of the model is governed by a composition of many such lifts, making it hard to summarize with concise invariants.
+
+2.2	Grassmann manifolds and Plu¨cker coordinates
+The Grassmann manifold Gr(k,r) is the set of all k-dimensional linear subspaces of Rr. It is a smooth manifold of dimension k(r − k). For our purposes, we focus on k = 2, so Gr(2,r) parameterizes all 2D subspaces in Rr, with dimension 2(r − 2).
+There are several standard ways to represent points on a Grassmannian. We use the Plu¨cker embedding, which maps each k-dimensional subspace to a point in projective space:
+
+•  Given a basis (u1,...,uk) of a k-dimensional subspace U ⊂ Rr, we form the exterior product u1 ∧ ··· ∧ uk  in the k-th exterior power ΛkRr.
+
+•  In coordinates, u1 ∧···∧uk  can be represented as a vector in R(k) whose entries are the k ×k minors of the matrix [u1   ...  uk].
+r
+
+•  For k = 2, this is particularly simple: if u,v ∈ Rr  span a 2D subspace, then u ∧ v is given by all pairwise determinants
+
+pij  = uivj − ujvi,	1 ≤ i < j ≤ r,
+
+forming a vector p ∈ R(2).
+r
+
+The image of Gr(2,r) under this embedding is not all of R(2); it is an algebraic variety defined by the quadratic Plu¨cker relations.  Nonetheless, for our purposes we can simply regard p as a normalized feature vector encoding the subspace spanned by u and v. Different bases spanning the same subspace yield proportional Plu¨cker vectors, reflecting the projective nature of the embedding.
+r
+We will use this representation to encode the local geometry of pairs of token vectors after a linear dimensionality reduction.
+
+2.3	Why Grassmann for sequence modeling?
+
+Why choose Grassmann manifolds as the backbone of our mixing rule, instead of, say, a different manifold or a more ad hoc feature transform? There are several reasons.
+
+
+5
+
+Local linear structure.	On a smooth manifold, local geometry can be captured by tangent spaces and their subspaces. Grassmannians naturally parameterize families of linear subspaces, making them well suited to represent local linear approximations of more complex structures.  When we take pairs of reduced hidden states and form their span, we are effectively encoding local directions and planes in the semantic manifold.
+
+Finite-dimensional algebraic structure.	The Grassmann manifold is finite-dimensional and sits inside a projective space via the Plu¨cker embedding.  This means we can encode geometric information in a fixed-dimensional feature vector subject to known algebraic constraints. Neural networks can operate on these features while the underlying object remains a subspace with clear geometric meaning.
+
+Compatibility with approximation theorems.	From the perspective of real analysis, we may idealize the semantic space as a manifold M and the model as an operator Φ : M → M.  Classic universal approximation theorems tell us that neural networks can approximate such operators given enough capacity, but they do not prescribe any particular geometry.  By constraining our mixing rule to first encode local neighborhoods into Gr(2,r) and then act on that manifold, we are effectively requiring that the model’s dynamics factor through a structured manifold with controlled degrees of freedom. Universal approximation still applies, but the approximation now unfolds on a space whose structure we can analyze.
+Taken together, these properties make Grassmannians a natural choice if we want to replace unstructured tensor lifting with a more controlled, interpretable, geometric primitive.
+
+3	Methods:  A Causal Grassmann Transformer without Attention
+
+We now describe the architecture in detail. Our design follows the broad outline of a Transformer encoder, but replaces each self-attention block with a Causal Grassmann mixing block that:
+
+1.  reduces hidden states to a low-dimensional space,
+2.  constructs local pairs and encodes them as Plu¨cker vectors in R(2), and
+r
+
+3.  mixes these geometric features back into the original hidden states via gating and a feed-forward network.
+
+3.1	Token and positional embeddings
+
+For language modeling, we consider a standard next-token LM setup over a vocabulary of size V . Given a sequence of tokens (x1,...,xL), we embed them into Rd  using a learned embedding matrix E ∈ RV ×d  and add positional embeddings P ∈ RLmax×d:
+
+h(0) = E(xt) + Pt,	t = 1,...,L.
+t
+
+Throughout our experiments we use d = 256. The resulting sequence H(0) = (h(0),...,h(0)) is fed through N stacked Causal Grassmann Transformer layers.
+1
+L
+
+3.2	Causal Grassmann mixing layer
+Each layer takes as input H  ∈ RL×d  and outputs an updated sequence H  ∈ RL×d.   The core operations within the layer are:
+˜
+
+6
+
+1.  Linear reduction.	We first reduce each hidden state to a low-dimensional vector: zt = Wredht + bred,	Wred ∈ Rr×d,  bred ∈ Rr.
+Typically r ≪ d; in our experiments we use r = 32. This yields Z = (z1,...,zL) ∈ RL×r.
+
+2.  Multi-scale local pairing.    We define a set of window sizes (offsets) W = {∆1,...,∆m}, e.g., W = {1,2,4,8,12,16}
+or a multi-layer schedule such as (1,1,2,2,4,4,8,8,12,12,16,16) for deeper models.   For each position t and offset ∆ ∈ W such that t + ∆ ≤ L, we form a pair (zt,zt+∆).
+For a given t, this produces up to m pairs:
+
+(zt,zt+∆1),  (zt,zt+∆2),  ....
+We treat these as local neighborhoods at multiple scales. Note that the pairing is causal: we only pair t with positions strictly to its right (future), consistent with left-to-right language modeling.
+
+3.  Grassmann / Plu¨cker encoding.	For each pair (zt,zt+∆), we consider the 2D subspace
+spanned by these vectors in Rr. We form the Plu¨cker vector p(∆) ∈ R(2) whose entries are: p(∆)(t) = zt,izt+∆,j − zt,jzt+∆,i,	1 ≤ i < j ≤ r.
+r
+t
+ij
+We then apply an optional normalization, e.g.,
+(∆)
+p
+t
+pˆ ∆) = max(∥p(∆)∥2,ε)
+(
+t
+t
+for numerical stability. This yields a set of Plu¨cker features for each t and ∆.
+
+4.  Projection back to model space.	We project these Grassmann features back into the model dimension via a learned linear map:
+g(∆) = Wplu¨pˆ ∆) + bplu¨,	Wplu¨  ∈ Rd×(2).
+(
+t	t
+r
+
+We then aggregate across offsets, e.g. by summation or averaging:
+1	X	(∆)
+g  =
+g	,
+t	|Wt| ∆∈Wt     t
+where Wt = {∆ ∈ W : t + ∆ ≤ L} is the set of valid offsets at position t.
+The vector gt ∈ Rd  captures multi-scale local Grassmann geometry around position t.
+
+
+5.   Gated fusion. compute a gate:
+
+We concatenate the original hidden state and the Grassmann feature and
+
+ut = [ht;gt] ∈ R2d,
+
+αt = σ(Wgateut + bgate),	Wgate ∈ Rd×2d.
+The mixed representation is
+˜
+t
+hmix = αt ⊙ ht + (1 − αt) ⊙ gt,
+followed by a layer normalization and dropout:
+ht = LayerNorm(hmix);	ht = Dropout(ht).
+ˆ	˜
+t
+ˆ	ˆ
+
+7
+
+
+6.  Feed-forward block. network:
+
+As in a standard Transformer, we apply a position-wise feed-forward
+
+ϕt = W2 σ(W1ht + b1) + b2,
+ˆ
+
+with W1  ∈ Rdff×d, W2  ∈ Rd×dff, dff  = 4d, and a nonlinearity σ (we use GELU). Another residual connection and layer normalization complete the layer:
+
+ht = LayerNorm(ht + ϕt).
+ˆ
+′
+
+Stacking N such layers yields the full Causal Grassmann Transformer.
+
+3.3	Comparison to self-attention
+
+For a sequence of length L and hidden dimension d, a standard multi-head self-attention layer has time complexity
+O(Ld2 + L2dhead),
+where dhead  is the per-head dimension.  The first term arises from computing Q,K,V , and the second from the matrix multiplication QK⊤  (size L2) and the subsequent multiplication of the
+L × L attention matrix by V .
+In our Grassmann mixing layer, the main costs are:
+
+•  Linear reduction: HWred  costs O(Ldr).
+⊤
+•  Plu¨cker computation: for each position and offset, forming p(∆)  costs O(r2). With m = |W| offsets, this contributes O(Lmr2).
+t
+•  Projection to model space: Wplu¨pˆ ∆)  costs O(d  2) per pair, giving O(Lmdr2). •  Gating and feed-forward: both are O(Ld2), as in a standard Transformer.
+(
+t
+r
+
+If we treat r and m as fixed hyperparameters (which they are in our experiments), r ≪ d, and note that r2  is modest, then the Plu¨cker and projection costs can be absorbed into the O(Ld2) term. Crucially, there is no L2  term: the complexity is linear in L for fixed r and m:
+
+Causal Grassmann:	O(Ld2)	vs.	Self-attention:	O(L2dhead + Ld2).
+
+In practice, our current implementation is slower per step than highly optimized GPU attention kernels for moderate L, due to overheads in computing Plu¨cker coordinates and handling reshapes. However, asymptotically in L, and with further engineering, the Grassmann layer can in principle be more scalable.
+
+4	Experimental Setup
+
+We evaluate the proposed Causal Grassmann architecture on two standard NLP benchmarks: Wikitext-2 for language modeling and SNLI for natural language inference [6, 9].
+
+4.1	Wikitext-2 language modeling
+
+Data and tokenization.	We use the Wikitext-2-raw dataset. Sequences are formed by contiguous chunks of text of fixed length L (block size).  In our main experiments, we consider L = 128 and L = 256. We use a WordPiece-like vocabulary of size V  ≈ 30,522, matching a BERT-style tokenizer.
+
+8
+
+Models.	We compare:
+
+•  TransformerLM: a standard decoder-only Transformer with N  layers, model dimension d = 256, feed-forward dimension dff = 1024, and multi-head self-attention with 4 heads.
+
+•  GrassmannLM: the same backbone (embeddings, number of layers, d, dff), but with each self-attention block replaced by a Causal Grassmann mixing block as described above.
+
+We explore two layer depths:
+
+• Shallow: N = 6 layers; GrassmannLM has ∼ 13.0M parameters, TransformerLM ∼ 12.6M.
+
+• Deeper: N = 12 layers; GrassmannLM has ∼ 18.2M parameters, TransformerLM ∼ 17.3M.
+
+For GrassmannLM we set the reduced dimension r = 32 and use multi-scale windows such as
+
+W = {1,2,4,8,12,16}
+
+for 6-layer models, and repeated patterns (1,1,2,2,4,4,8,8,12,12,16,16) across depth for 12-layer models.
+
+Training.	We train both models with the same optimizer and learning rate schedule in a shared script, differing only in the choice of mixing block. All models are trained for 30 epochs, and we report the best validation perplexity over training. Batch size is 32 for L = 128 and 16 for L = 256 in our main configurations.
+
+4.2	SNLI natural language inference
+
+Data.	We use the SNLI dataset, which consists of sentence pairs labeled as entailment, contradic-tion, or neutral. We follow a standard train/validation/test split.
+
+Backbone.	For fair comparison, we fix a DistilBERT-base-uncased backbone as a feature extractor. The backbone produces contextualized token embeddings up to a maximum sequence length of 48 tokens per sentence (after tokenization and truncation).   We then apply pooling to obtain sentence-level representations.
+
+Classification heads.	On top of the DistilBERT backbone we compare:
+
+•  Transformer head: a 2-layer Transformer-style classifier with self-attention over the pooled features and a final linear layer for 3-way classification.
+
+•  Grassmann–Plu¨cker head: our proposed Grassmann-based head (GrassmannPluckerNLIModel), which applies a Grassmann mixing module over multi-scale windows to the projected features
+and then uses a feed-forward classifier.
+
+The Grassmann head uses the following hyperparameters: reduced dimension dproj = 64, window size 8 with stride 8 over the token sequence, dmodel  = 256, 2 mixing layers, 4 mixing heads (for grouping pairs), dff = 512, and dropout 0.1. Both heads have comparable parameter counts, and both are trained for 20 epochs from the same initialization of the backbone.
+
+
+
+9
+
+
+
+Model	Layers
+TransformerLM (block size 128)	6 GrassmannLM (block size 128)	6 TransformerLM (block size 128)	6 GrassmannLM (block size 128)	6
+
+Params (M)	Val PPL
+12.59	248.4 13.00	275.7 12.59	253.6 13.00	282.3
+
+
+Table 1:  Wikitext-2:  6-layer models with block size 128 and two different multi-scale window schedules. The GrassmannLM trails the TransformerLM by about 10–15% in validation perplexity but remains in the same overall regime.
+
+
+Model	Layers
+TransformerLM (block size 256)        12 GrassmannLM (block size 256)          12
+
+Params (M)	Val PPL
+17.32              235.2 18.16              261.1
+
+
+Table  2:   Wikitext-2:   12-layer  models  with  block  size  256  and  repeated  multi-scale  windows (1,1,2,2,4,4,8,8,12,12,16,16) over depth. The GrassmannLM is again within roughly 10% of the TransformerLM.
+
+Metrics.	We report classification accuracy on the validation and test sets, along with training loss curves.
+
+5	Results
+
+5.1	Wikitext-2 language modeling
+
+Tables 1 and 2 summarize our main language modeling results. We report parameter counts and best validation perplexity over 30 epochs.
+For 6-layer models with block size 128 and multi-scale windows W  = {1,2,4,8,12,16}, the GrassmannLM attains a best validation perplexity of approximately 275.7, compared to 241.0–253.6 for the TransformerLM under matched training conditions. With a slightly different window schedule (e.g., {1,2,4,8,8,8}), we see similar gaps:  GrassmannLM at 282.3 vs. TransformerLM at 248.4.
+For deeper 12-layer models with block size 256 and a repeated multi-scale window pattern, the GrassmannLM reaches a best validation perplexity of 261.1, while the TransformerLM reaches 235.2. The relative gap is smaller than in the 6-layer setting, suggesting that additional depth helps the Grassmann model compensate for its more localized mixing.
+Overall, across these configurations:
+
+•  The GrassmannLM is consistently within 10–15% of a size-matched TransformerLM in valida-tion perplexity, despite using no attention.
+
+•  The gap appears to narrow as depth increases, which is consistent with the view that repeated local Grassmann mixing can approximate richer interactions.
+
+•  Parameter counts remain comparable: the GrassmannLM has slightly more parameters due to the Plu¨cker projection and gating layers, but the difference is on the order of ∼ 3–5%.
+
+These results are not intended to be competitive with state-of-the-art language models, but to demonstrate that “attention-free” sequence modeling via Grassmann flows is viable at moderate scales.
+
+10
+
+
+
+Head type
+Transformer head Grassmann–Plu¨cker head
+
+Val accuracy
+0.8545 0.8550
+
+Test accuracy
+0.8511 0.8538
+
+
+Table 3: SNLI classification accuracy with DistilBERT backbone. The Grassmann–Plu¨cker head slightly outperforms the Transformer head on both validation and test sets.
+
+5.2	SNLI natural language inference
+
+Table 3 summarizes our SNLI results. Recall that both models share the same DistilBERT backbone and differ only in the classification head.
+The Grassmann head achieves a best validation accuracy of 0.8550 and test accuracy of 0.8538, slightly outperforming the Transformer head,  which reaches 0.8545 validation and 0.8511 test accuracy.  Training curves show similar convergence rates, with the Grassmann head exhibiting slightly lower validation loss late in training.
+Although the margin is small, this result is important conceptually:
+
+•  It shows that on a downstream reasoning task, injecting explicit geometric structure into the classification head can match or slightly exceed a Transformer head, even when the backbone is fixed.
+
+•  It indicates that the Grassmann mechanism is not merely a theoretical curiosity but can contribute positively to performance in practical settings.
+
+5.3	Complexity and empirical runtime
+
+As discussed earlier, the asymptotic complexity of the Causal Grassmann layer is linear in sequence length L for fixed reduced dimension r and number of windows m, whereas self-attention scales quadratically in L due to the L × L attention matrix.
+In our current implementation, however, the empirical per-step runtime of the pure Grassmann model is slower than that of the Transformer baseline for sequence lengths up to 256.  This is expected:
+
+•  GPU libraries provide highly optimized kernels for dense matrix multiplications and attention mechanisms.
+
+•  Our Plu¨cker computation involves explicit element-wise operations and reshaping that do not yet exploit low-level kernel fusion or custom CUDA implementations.
+
+The experiments reported here should therefore be interpreted as a proof of concept  for the architecture and its complexity profile, not as an optimized engineering solution.   A dedicated implementation that fuses the Grassmann operations and leverages the structure of Gr(2,r) would be required to fully realize the potential linear scaling benefits in practice.
+
+6	Discussion
+
+6.1	What does Grassmann mixing actually buy us?
+
+Our experiments demonstrate that a purely geometric, locality-based mixing rule can support non-trivial language modeling and natural language inference,  without relying on explicit self-
+
+11
+
+attention. With relatively small models and modest context lengths, the proposed Causal Grassmann architecture:
+
+•  remains competitive with a size-matched Transformer on Wikitext-2, and
+
+•  slightly outperforms a Transformer classification head on SNLI when used as a DistilBERT-based NLI model.
+
+From an engineering perspective, this shows that attention is not strictly necessary for competent sequence modeling at this scale. From a conceptual perspective, it supports a more subtle claim:
+Claim.  As long as the model is endowed with a geometrically rich enough local evolution rule, semantic reasoning can emerge even without explicit attention weights.
+Self-attention lets each token see every other token via a learned L×L weight matrix. Grassmann mixing, by contrast, constructs a sequence of local subspace updates: information flows by rotating and bending low-rank subspaces over multi-scale windows. Both mechanisms accumulate higher-order geometric structure across layers, but with different primitives:
+
+•  Self-attention uses tensor lifting and global pairwise interactions;
+
+•  Grassmann mixing uses low-rank subspaces and local windows as a controlled flow on a manifold.
+
+At our current scale, the Grassmann models do not surpass Transformers on language modeling; they are slightly behind. This is not surprising given the simplicity of our design and the lack of extensive hyperparameter tuning. Nevertheless, the SNLI results show that when the backbone is fixed and we focus on the head, adding explicit geometry can yield measurable gains. This suggests that the geometric perspective is not only philosophically appealing but practically useful.
+
+6.2	Interpretability:  from tensor lifting to finite-dimensional flows
+
+We argued in the introduction that a central reason for Transformer uninterpretability is the nature of attention as tensor lifting. Each layer lifts the representation into a high-dimensional space of pairwise interactions; the overall model is a composition of such lifts.  Although each individual attention map is visible, the global behavior is dificult to summarize in terms of a small set of invariants.
+In contrast, the Grassmann architecture deliberately compresses the relevant degrees of freedom into a finite-dimensional, mathematically rigid manifold:
+
+•  The reduced states zt ∈ Rr  capture local directions in a lower-dimensional space.
+
+•  Pairs (zt,zt+∆) define points on Gr(2,r); these points are encoded by Plu¨cker vectors with fixed dimension   2  .
+r
+   
+
+•  The mixing process is constrained to local deformations of these low-rank subspaces, rather than arbitrary manipulations of an L × L tensor.
+
+This suggests a more hopeful interpretability story. After training, one can treat the Plu¨cker vectors or other Grassmann descriptors as candidate explanatory invariants:
+
+•  They are finite in number and obey explicit algebraic relations.
+
+12
+
+•  They are comparable across layers.
+
+•  They can be studied with tools from differential geometry and algebraic geometry.
+
+This does not make interpretability trivial.  However, it moves the core of the model into a domain where there is at least a realistic prospect of defining and computing global invariants. Instead of trying to summarize an evolving collection of attention tensors, we can try to summarize an evolving trajectory on a manifold Gr(2,r).
+
+6.3	Why Grassmann?  A link to approximation theorems
+
+From the perspective of approximation theory, we may idealize a sequence model as approximating an operator Φ on a semantic manifold M ⊂ Rd.  Universal approximation theorems ensure that, under mild conditions, neural networks can approximate such operators arbitrarily well.
+Those theorems, however, are agnostic about the architecture’s geometric structure. They do not distinguish between models that operate on unstructured tensors and those that operate on structured manifolds. Our choice of Grassmann manifolds can be viewed as imposing an additional, geometry-aware bias:
+
+• We first encode local neighborhoods of M into subspaces in Gr(2,r) via linear reduction and wedge products.
+
+• We then approximate the induced transformation on the Grassmann manifold using MLPs and gating.
+
+•  Finally, we map back to the original representation space.
+
+In  this  sense,  we  are  not  changing  the  fundamental  approximation  capacity—the  network remains universal in principle—but we are constraining the way it realizes that capacity.   All non-local interactions must factor through a finite-dimensional manifold with explicit structure. This is precisely what attention does not enforce:  attention allows a very free exploration of a high-dimensional tensor space.
+
+6.4	Global and long-range invariants as the next step
+
+The present Causal Grassmann design uses only local windows.   Long-range dependencies are modeled implicitly through depth and multi-scale windows. This sufices for the tasks studied here, but it suggests a natural next step, in line with the intuition that motivated this work:
+
+Construct explicit global or long-range invariants of the sequence-level Grassmann flow and feed them back as features.
+For example, one could compute:
+
+•  A “mean Grassmann direction” summarizing the overall trajectory of subspaces across a sequence.
+
+•  Sequence-level statistics of Plu¨cker coordinates, such as principal directions or curvature-like quantities.
+
+•  Cross-layer invariants that measure how stable certain subspaces are across depth.
+
+
+13
+
+These invariants could then be injected into each layer as auxiliary inputs or gates, turning the architecture into a system where local flows are guided by global constraints. This would echo the interplay between local and global structures in information geometry, where local metrics (e.g., Fisher information) and global curvature jointly shape inference.
+In this paper we deliberately restricted ourselves to a minimal design—k = 2, no explicit global invariants—to keep the core idea clear. But we view “global invariants + local Grassmann flow” as a promising direction for future work on geometry-aware reasoning.
+
+7	Related Work
+
+7.1	Eficient and long-context Transformers
+
+A large body of work aims to reduce the quadratic cost of self-attention, including linearized or kernelized attention, sparse and local attention patterns, and memory-augmented or retrieval-based architectures. These approaches typically:
+
+•  approximate or sparsify the QK⊤  computation,
+
+•  restrict attention to local windows or structured patterns, or
+
+•  ofload parts of the context into external memories or caches.
+
+All of them, however, retain the same core operation: the model still computes (or approximates) an L × L matrix of pairwise weights.  Our work is orthogonal:  we remove attention entirely and explore whether a geometric mixing rule based on Grassmann flows can fill its role.
+
+7.2	State-space models and structured sequence models
+
+State-space models and related architectures interpret sequences as signals governed by linear dynamical systems, often combined with non-linear readout. These models excel at long-context modeling with linear complexity in sequence length and have strong ties to control theory and signal processing.
+Grassmann mixing shares with state-space models the idea of maintaining a structured latent state that evolves over time, but the emphasis is different:
+
+•  SSMs focus on temporal evolution of a latent state; their geometry is often implicit.
+
+•  Grassmann mixing focuses on geometric evolution in representation space, with time entering through causal windows.
+
+The two perspectives are complementary, and hybrid architectures that combine SSM-style temporal dynamics with Grassmann constraints on hidden representations are an interesting direction for future work.
+
+7.3	Geometric and manifold-based representation learning
+
+There is growing interest in learning on non-Euclidean spaces, including hyperbolic, spherical, and other Riemannian manifolds. These approaches typically embed data into a curved manifold where distances better capture the underlying structure (e.g., hierarchies, periodicities).
+
+
+
+14
+
+Grassmann manifolds have appeared in classical machine learning contexts such as subspace clustering, low-rank approximation, and metric learning, where they represent sets of subspaces. Their use as a primary mixing mechanism in sequence models has been less explored. Our contribution is to integrate a Grassmann–Plu¨cker pipeline directly into a Transformer-like block, turning subspace geometry into a core part of the sequence interaction mechanism.
+
+7.4	Interpretability and attention analysis
+
+Attention maps are often used as a proxy for interpretability in Transformers: we visualize which tokens attend to which others. However, attention weights are not guaranteed to align with causal importance, and aggregating them across layers and heads leads to highly complex patterns.
+Our work does not introduce a new interpretability method per se, but it changes the object of analysis. Instead of trying to make sense of attention tensors, we propose to analyze the evolution of Grassmann features. These are finite-dimensional, structured objects that may lend themselves more naturally to geometric or algebraic analysis.
+
+8	Conclusion and Future Work
+
+We revisited a simple but fundamental question: is explicit self-attention, as commonly implemented in Transformers, really necessary for strong sequence modeling and reasoning?
+By reinterpreting attention as a form of tensor lifting, we argued that its power comes at the cost of mathematical traceability: the core of the model lives in a high-dimensional tensor space whose global behavior is dificult to summarize with explicit invariants. We then proposed an alternative in which the sequence interaction is governed by flows on a Grassmann manifold rather than by an L × L attention matrix.
+The resulting Causal Grassmann architecture:
+
+•  is fully attention-free, yet competitive with a Transformer baseline on Wikitext-2 at 13–18M parameters,
+
+•  slightly outperforms a Transformer-based classification head on SNLI when plugging into a fixed DistilBERT backbone, and
+
+•  has an asymptotic complexity that is linear in sequence length for fixed reduced dimension and window sizes.
+
+Beyond these empirical results, the main contribution is conceptual: Grassmann flows offer a concrete example of how one can design sequence models whose core operations live on a finite-dimensional manifold with explicit structure, rather than in an unstructured tensor space.  This opens the door to a more geometric understanding of reasoning in neural networks.
+There are many directions for future work:
+
+•  Global and long-range invariants. Develop sequence-level invariants of the Grassmann flow—e.g., averaged subspaces, curvature-like measures, or cross-layer stability statistics—and inject them as features or constraints on local mixing.
+
+•  Richer Grassmann structures. Move beyond k = 2 subspaces, explore higher-dimensional subspaces, and study regularizers that encourage smooth trajectories on Gr(k,r) across layers.
+
+
+
+15
+
+•  Hybrid architectures.  Combine Grassmann mixing with state-space models, kernelized attention, or convolutional modules to better balance local, global, and temporal information.
+
+•  Interpretability studies. Systematically investigate correlations between Plu¨cker coordi-nates, model behavior, and human-understandable patterns, with the goal of defining more stable invariants than raw attention maps.
+
+•  Scaling and engineering. Implement fused Grassmann kernels and optimized GPU operators to realize the theoretical linear scaling in practice and test the architecture at larger scales and on more challenging reasoning benchmarks.
+
+In summary, our results suggest that what we fundamentally need for strong sequence modeling is not attention as such, but a principled way for representations to move on the manifolds they inhabit. Grassmann flows provide one concrete instantiation of this idea, and we hope they will encourage further exploration of geometric alternatives to attention in the design of neural architectures.
+
+References
+
+[1]  A. Vaswani, N. Shazeer, N. Parmar, J. Uszkoreit, L. Jones, A. N. Gomez, L. Kaiser, and I. Polosukhin, “Attention Is All You Need,” in Advances in Neural Information Processing Systems (NeurIPS), vol. 30, 2017.
+
+[2]  J. Devlin, M.-W. Chang, K. Lee, and K. Toutanova, “BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding,” in Proceedings of the 2019 Conference of the North American Chapter of the Association for Computational Linguistics (NAACL), pp. 4171–4186, 2019.
+
+[3]  A. Radford, J. Wu, R. Child, D. Luan, D. Amodei, and I. Sutskever, “Language Models are Unsupervised Multitask Learners,” OpenAI technical report, 2019.
+
+[4]  T. Brown, B. Mann, N. Ryder et al., “Language Models are Few-Shot Learners,” Advances in Neural Information Processing Systems 33 (NeurIPS), 2020.
+
+[5]  A. Dosovitskiy, L. Beyer, A. Kolesnikov et al., “An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale,” International Conference on Learning Representations (ICLR), 2021.
+
+[6]  S.  Merity,  C.  Xiong,  J.  Bradbury,  and  R.  Socher,  “Pointer  Sentinel  Mixture  Models,” arXiv:1609.07843, 2016.
+
+[7]  T. Brown, B. Mann, N. Ryder, M. Subbiah, J. D. Kaplan, P. Dhariwal et al., “Language Models are Few-Shot Learners,” in Advances in Neural Information Processing Systems (NeurIPS), vol. 33, pp. 1877–1901, 2020.
+
+[8]  S. Merity, C. Xiong, J. Bradbury, and R. Socher, “Pointer Sentinel Mixture Models,” in 5th International Conference on Learning Representations (ICLR), 2017. (WikiText-2 dataset.)
+
+[9]  S. R. Bowman, G. Angeli, C. Potts, and C. D. Manning, “A Large Annotated Corpus for Learning Natural Language Inference,” in Proceedings of the 2015 Conference on Empirical Methods in Natural Language Processing (EMNLP), pp. 632–642, 2015. (SNLI dataset.)
+
+
+
+16
+
+[10]  N. Parmar, A. Vaswani, J. Uszkoreit, L. Kaiser, N. Shazeer, A. Kuvekas, and D. Tran, “Image Transformer,” in Proceedings of the 35th International Conference on Machine Learning (ICML), pp. 4055–4064, 2018.
+
+[11]  R. Hartshorne, Algebraic Geometry. Springer, 1977.
+
+[12]  J. M. Lee, Introduction to Riemannian Manifolds, 2nd ed. Springer, 2018.
+
+[13]  A. Edelman, T. A. Arias, and S. T. Smith, “The Geometry of Algorithms with Orthogonality Constraints,” SIAM Journal on Matrix Analysis and Applications, vol. 20, no. 2, pp. 303–353, 1998.
+
+[14]  P.-A. Absil, R. Mahony, and R. Sepulchre, Optimization Algorithms on Matrix Manifolds. Princeton University Press, 2008.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+17
