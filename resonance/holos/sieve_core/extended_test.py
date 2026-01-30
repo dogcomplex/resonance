@@ -44,7 +44,7 @@ for step in range(20000):
         stats = sieve.get_stats()
         print(f"  Step {step+1:6d}: Recent500={recent:.1f}%  "
               f"[Q={stats['resonance_q']:.3f} bestQ={stats['best_q']:.3f}@{stats['best_q_frame']} "
-              f"cavities={stats['n_cavities']} modes={stats['n_modes']} "
+              f"couplings={stats['n_couplings']} modes={stats['n_modes']} "
               f"heat={stats['heat_bath']:.4f}]")
 
 # Test restore_best on sequence
@@ -186,7 +186,7 @@ for puzzle in range(20000):
               f"Moves={r_moves:.1f}%  |  Cumul Solve={cumul_solve:.1f}% "
               f"Moves={cumul_moves:.1f}%  [Q={stats['resonance_q']:.3f} "
               f"bestQ={stats['best_q']:.3f}@{stats['best_q_frame']} "
-              f"cavities={stats['n_cavities']} modes={stats['n_modes']}]")
+              f"couplings={stats['n_couplings']} modes={stats['n_modes']}]")
 
 
 # ============ EXTENDED TICTACTOE TEST ============
@@ -287,7 +287,7 @@ for game in range(10000):
               f"D={rd:.1f}%  |  Cumul W={100*wins/total:.1f}% "
               f"L={100*losses/total:.1f}%  [Q={stats['resonance_q']:.3f} "
               f"bestQ={stats['best_q']:.3f}@{stats['best_q_frame']} "
-              f"cavities={stats['n_cavities']}]")
+              f"couplings={stats['n_couplings']}]")
 
 
 # ============ OPTIMAL STOPPING TEST ============

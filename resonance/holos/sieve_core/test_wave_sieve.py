@@ -319,7 +319,7 @@ def test_sequence():
             recent = 100 * sum(window) / len(window)
             stats = sieve.get_stats()
             print(f"  Step {step+1}: Recent100={recent:.1f}%  "
-                  f"[modes={stats['n_modes']} temporal={stats['n_temporal']} "
+                  f"[modes={stats['n_modes']} couplings={stats['n_couplings']} "
                   f"heat={stats['heat_bath']:.3f}]")
 
     print(f"\nFINAL: {100*correct/total:.1f}% (baseline: 33%)")

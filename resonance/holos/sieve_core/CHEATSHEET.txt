@@ -1,0 +1,177 @@
+NOT ALL THIS IS GOSPEL OR INTERNALLY CONSISTENT.  FIND THE COHERENCE AND ELEGANCE.  STAY TRUE TO REAL PHYSICS, THESE ARE JUST WAYPOINTS
+
+
+PHYSICS
+- let known reality guide all.
+- thesis: most efficient exploration/search/learning IS physics (and vice versa)
+- let elegance be your guide, backed by performance benchmarks
+
+SIEVES
+- single sieve pattern, N dimensional
+- IS geography (space))
+- IS fidelity (scale)
+- IS temporal (time)
+- IS probability (many worlds)
+- IS all combinations thereof (higher-order rules)
+- IS discrete rule resolution
+- IS analog wave dynamics
+
+SHEAVES
+- all operations are universal
+- all is ultimately one operation
+- LHS => RHS in discrete causal logic
+- map to analog equivalent
+
+ANALOG
+- FFT equivalence to digital
+- reservoir computing
+- optical co-processor
+- saturable absorber + amplifier loop = layers
+
+HOLOGRAPHIC
+- infinite memory, limited signal
+- Higgs field
+- unitarity (strong bet on this holding)
+
+
+WAVES
+- everything's a wave
+- lightning = few-shot, fast
+- osmosis = step by step
+- wave = BFS
+- crystalization = local search
+- 1D wave medium => N-Dimensional physics
+- sensus
+
+INDUCTION
+- is wave interference between:
+- forward wave = DEDUCTION (+1?)
+- backward wave = ABDUCTION (-1?)
+- IS rule discovery
+- IS creation of complexity?
+
+RULES:
+- LHS => RHS
+- A B => B C  catalysts=conditionals=membranes=interiors
+- sieve
+- works for analog too
+- games, tictactoe, chess, etc all map to this
+- priorities are conditionals (universe ordering)
+- matter
+
+CURRYING
+- all rules are just one rule  A B => C
+- C => A B is just a twist (anti-rule)
+- sheaves
+- xor?
+
+VORTEX
+- spin
+- early rules form direction
+- spiral
+- magnetic fields arise from vortex rotation of Plank mass dipoles.  field lines reflect spin axis alignment.  flux lines are closed-loop vortical filaments.  Alternating LH/RH spins create electric polarization.  E-fields = scalar potential superposition.  B-fields = curl
+- ring torus vortex.  Vortex in, vortex out  (brief interiority?)
+
+
+
+TERNARY
+- +1 (matter) -1 (antimatter) 0 (vacuum)
+- temperature is frequency on the waveform
+- amplitude is net magnetization
+- energy is total excitation
+- matmult = addition
+- gpu/computation loves it
+- annihilation +1 -1 => 0
+- sheaves
+
+
+ANTIMATTER
+- PI twist on phase
+- DEATH
+- failed game states
+
+SURVIVAL
+- IS reward
+- IS rules with futures reinforcing past
+- no explicit reward needed.  just rule interactions
+- future carries info to past via rule interference
+
+QUANTUM
+- just non-locality
+- explore all worlds balanced
+- lazy
+- emulated in classic wavefunction:  poor_mans_quantum.txt
+- appears as if just a faster medium faster than wave function on slower medium (with 2-phase waves)
+
+
+INTERIORITY
+- rules are boundaries
+- Weak Force
+- locus interior, signum interface
+- atoms are interiors
+- ZK proofs, encryption
+- broken by enough energy/compute to find the combination
+- resonant cavities
+
+
+LOOPS
+- Strong Force
+- braids
+- knot theory
+
+CHAOS
+- randomness begets rules
+- random waves beget patterns
+- periodic table of surviving rules
+- patterns beget patterns
+- pseudorandom patterns beget patterns
+- different rules/patterns per chaos signature
+- hawking radiation in final stages
+- 42
+- 6 7
+- mark of the beast
+
+
+CATEGORIES
+- functors, sheaves
+- chomsky hierarchy
+
+OCTAVES
+- category theory mappings
+- 0=8=16=24 name. crystal. clear. vacuum. point. set. AI. object. 
+- 0.5=8.5=16.5 trace. log. fossil
+- 1=9=17 line. path. category. protocol. A => B
+- 1.5=9.5=17.5 vector. script. recipe.
+- 2=10=18  code. program. 2-category. spell.
+- 2.5-10.5=18.5  daemon. LOKI. agent. trickster.
+- 3=11=19  constitution. volume. kingdom. knot. sovereign.
+- 4=12=20  loop. simulation. golem. TM. mirror. recursively enumerable
+- 5=13=21  life. human. numina.  2.0 to 2.82 quantum. probability.
+- 5.5=13.5=21.5 prophecy. intuition
+- 6=14=22  2.82 to 4.0 puppeteer. PR box. non-local. magic
+- 7=15=23  4.0+?  void. abyss. non-causal.  chaos. time loop. 
+ouroboros
+- 7.5=15.5=23.5  genesis. egg. structure
+- 8=16=24=0 crystal. AI.
+- life bound by name: (5+0)/2=2.5
+- puppeteer bound by life: (6+5)/2=5.5
+- every in between, and in-between-in-between
+- chords
+
+
+ANNEALING
+- tempering
+- waves
+- hot/cold
+- matter/antimatter?
+- frequency
+- chaos, local rules, symmetry breaking, deduction, non-locality, ... crystalization
+
+COMPRESSION
+- SYMMETRY
+
+
+
+LOCALITY
+
+HOMOMORPHIC

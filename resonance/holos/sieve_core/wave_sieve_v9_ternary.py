@@ -1,39 +1,46 @@
 """
-WAVE SIEVE v11 — Deterministic Self-Compressing Ternary Wavefunction
-=====================================================================
+WAVE SIEVE v9 — Ternary Wavefunction
+======================================
 
-Ternary amplitudes {-1, 0, +1} with concentration = temperature.
-Each mode-action stores [plus_count, minus_count].
+The radical hypothesis: amplitudes are discrete ternary {-1, 0, +1}.
+"Strength" is not a continuous number but a CONCENTRATION — how many
+copies of the same trit exist for a given mode-action.
 
-v11 improvements over v10:
-- Deterministic from a single seed (np.random.RandomState)
-- Self-compression replaces periodic pruning: undifferentiated
-  composite modes evaporate (Hawking radiation). Replaces mode cap.
-- All constants except SEED_COUNT are clearly documented as either
-  physics-derived or engineering choices.
+This is like chemistry: you don't have one molecule with strength 3.7.
+You have 4 molecules. The concentration IS the amplitude.
 
-Physics-derived (from SEED_COUNT = 1):
-- Interference: add trits, auto-annihilate (matter + antimatter)
-- Decoherence: ratio-preserving decay at rate 1/N_dof (equipartition)
-- Self-compression: modes with signal ≤ SEED_COUNT evaporate
-- Boltzmann selection: P(a) ∝ exp(net(a) / T)
-- Signal credit: SEED_COUNT * 4 / (1+i)² (inverse square in time,
-  factor 4 = signal-to-noise above observe reinforcement floor)
-- Composite weight: 1/order (dilution by composition depth)
-- Locality weight: N / 1 / (1/N) = 1/r² on discrete graph
+Each mode-action stores TWO integers:
+    plus:  count of +1 trits (matter)
+    minus: count of -1 trits (antimatter)
 
-Engineering choices (acknowledged, not yet derived from physics):
-- Temperature: T = max(1, net_range / 10). The divisor 10 works
-  empirically but isn't derived from SEED_COUNT. The physics question:
-  what sets the temperature? Concentration? Entropy? TBD.
-- Spatial sample count: sqrt(N_observed). Scales with input size
-  but the sqrt is a heuristic for diffusion rate.
+Derived quantities:
+    net = plus - minus        (magnetization, "which way does this point")
+    energy = plus + minus     (total excitation)
+    vacuum = 0 plus, 0 minus  (empty space)
 
-One operation: _interfere(key, action, sign, count)
-One constant: SEED_COUNT = 1
-One seed: deterministic RNG
+Operations (all integer arithmetic):
+    interfere(+1) = plus += 1     (add matter)
+    interfere(-1) = minus += 1    (add antimatter)
+    annihilate    = if plus>0 and minus>0: both -= 1  (matter+antimatter→nothing)
+    decohere      = randomly remove one trit          (energy → heat)
+    signal(+)     = add +1 trits to trace modes       (reinforce)
+    signal(-)     = add -1 trits to trace modes       (anti-reinforce)
+
+Born rule: P(action) ∝ max(1, net(action))²
+Currying: trit_a × trit_b = product of signs (+1×+1=+1, +1×-1=-1, 0×x=0)
+
+Temperature of a mode = total trit count across all actions.
+Temperature of the system = total trit count everywhere.
+
+One parameter: SEED_COUNT (how many trits to inject per operation).
+One operation: add trits.
+One medium: integer counts.
+
+Everything else from v8 carries over: recursive currying, pruning,
+resonance quality, optimal stopping.
 
 token = wave = vertex = rule = mode (of any order)
+Amplitudes are now countable. Computation is integer addition.
 """
 
 import numpy as np
@@ -42,17 +49,21 @@ from collections import defaultdict
 
 
 class WaveSieve:
-    """Ternary wavefunction. Integer arithmetic. One constant. One seed."""
+    """Ternary wavefunction. Integer arithmetic. One parameter."""
 
+    # SEED_COUNT replaces PSI_0. It's how many trits we inject per op.
+    # PSI_0 = 0.1 meant 0.01 energy. SEED_COUNT = 1 means 1 trit.
     SEED_COUNT = 1
-    PSI_0 = 0.1  # interface compat
+    PSI_0 = 0.1  # kept for interface compat (Q metric etc.)
 
-    def __init__(self, seed: int = 42):
-        self.rng = np.random.RandomState(seed)
+    def __init__(self):
+        # The wavefunction. Each mode-action stores (plus_count, minus_count)
+        # psi[key][action] = [plus, minus]  (list of 2 ints)
         self.psi: Dict[Any, Dict[int, List[int]]] = defaultdict(dict)
+
         self._prev_modes: Optional[List[tuple]] = None
         self._prev_data: Optional[Dict[Any, Any]] = None
-        self.total_trits: int = 0
+        self.total_trits: int = 0  # total trit count = system temperature
         self._trace: List[Tuple[List[tuple], int]] = []
         self.frame: int = 0
 
@@ -68,7 +79,8 @@ class WaveSieve:
 
     def _interfere(self, key: Any, action: int, sign: int, count: int = 1,
                    num_actions: int = None):
-        """Add trits to a mode-action. The ONLY mutation of psi."""
+        """Add trits to a mode-action. sign ∈ {+1, -1}.
+        This is the ONLY way the wavefunction changes."""
         if count <= 0:
             return
         if key not in self.psi:
@@ -81,61 +93,65 @@ class WaveSieve:
 
         pm = self.psi[key][action]
         if sign > 0:
-            pm[0] += count
+            pm[0] += count  # plus
         else:
-            pm[1] += count
+            pm[1] += count  # minus
+
         self.total_trits += count
 
-        # Annihilate: matter + antimatter → vacuum
+        # Annihilate: +1 and -1 cancel in pairs
         annihilated = min(pm[0], pm[1])
         if annihilated > 0:
             pm[0] -= annihilated
             pm[1] -= annihilated
-            self.total_trits -= 2 * annihilated
+            self.total_trits -= 2 * annihilated  # both vanish
 
     def _spawn_mode(self, key: Any, num_actions: int):
-        """New mode at vacuum: one random trit per action."""
+        """New mode: each action gets 1 random trit (vacuum fluctuation)."""
         for a in range(num_actions):
-            sign = self.rng.choice([-1, 1])
-            self.psi[key][a] = [self.SEED_COUNT if sign > 0 else 0,
-                                self.SEED_COUNT if sign < 0 else 0]
-            self.total_trits += self.SEED_COUNT
+            sign = np.random.choice([-1, 1])
+            self.psi[key][a] = [1 if sign > 0 else 0,
+                                1 if sign < 0 else 0]
+            self.total_trits += 1
 
     # =================================================================
     # DERIVED QUANTITIES
     # =================================================================
 
     def _net(self, key, action) -> int:
+        """Net magnetization = plus - minus."""
         if key not in self.psi or action not in self.psi[key]:
             return 0
         pm = self.psi[key][action]
         return pm[0] - pm[1]
 
     def _energy(self, key, action) -> int:
+        """Excitation level = plus + minus."""
         if key not in self.psi or action not in self.psi[key]:
             return 0
         pm = self.psi[key][action]
         return pm[0] + pm[1]
 
-    def _mode_energy(self, key) -> int:
-        if key not in self.psi:
-            return 0
+    def _mode_total_trits(self, key) -> int:
+        """Total trits in a mode across all actions."""
         return sum(pm[0] + pm[1] for pm in self.psi[key].values())
-
-    def _mode_signal(self, key) -> int:
-        """Max |net| across actions — how differentiated this mode is."""
-        if key not in self.psi:
-            return 0
-        return max(abs(pm[0] - pm[1]) for pm in self.psi[key].values())
 
     def _n_modes(self) -> int:
         return max(1, sum(len(acts) for acts in self.psi.values()))
 
+    def _total_energy(self) -> int:
+        """Total trits in the system."""
+        return self.total_trits
+
+    def _mode_energy_float(self) -> float:
+        """For compat with Q metric."""
+        return float(self.total_trits)
+
     def _heat(self) -> float:
-        return 0.0
+        return 0.0  # no separate heat bath in ternary model
 
     # =================================================================
-    # MODE STRUCTURE
+    # MODE STRUCTURE (same as v8)
     # =================================================================
 
     def _mode_key(self, position: Any, value: Any) -> tuple:
@@ -199,32 +215,36 @@ class WaveSieve:
 
         N = self._n_modes()
 
-        # =============================================================
-        # (1) DECOHERENCE — ratio-preserving decay
-        #
-        # Rate = 1/N_dof (equipartition: each degree of freedom gets
-        # equal share of thermal energy). Both sides decay equally
-        # → net/total ratio preserved. Like radioactive decay.
-        # =============================================================
+        # (1) DECOHERENCE — proportional decay (like radioactive decay)
+        # Each mode-action loses a fraction of its trits.
+        # Rate = 1/N so large systems decay slowly (same as complex ver).
+        # This preserves signal ratios while shrinking toward vacuum.
         decay_rate = 1.0 / N
         for key in list(self.psi.keys()):
             for a in list(self.psi[key].keys()):
                 pm = self.psi[key][a]
-                for side in (0, 1):
-                    if pm[side] <= 0:
-                        continue
-                    n_remove = pm[side] * decay_rate
-                    n_rem_int = int(n_remove)
-                    if self.rng.random() < (n_remove - n_rem_int):
-                        n_rem_int += 1
-                    if n_rem_int > 0 and pm[0] + pm[1] > self.SEED_COUNT:
-                        actual = min(n_rem_int, pm[side])
-                        pm[side] -= actual
-                        self.total_trits -= actual
+                total = pm[0] + pm[1]
+                if total <= 1:
+                    continue  # already at vacuum
+                # Remove this fraction of trits (stochastic rounding)
+                n_remove = total * decay_rate
+                # Integer part + stochastic fractional part
+                n_rem_int = int(n_remove)
+                if np.random.random() < (n_remove - n_rem_int):
+                    n_rem_int += 1
+                if n_rem_int <= 0:
+                    continue
+                # Remove from whichever side has more (toward balance)
+                for _ in range(n_rem_int):
+                    if pm[0] + pm[1] <= 1:
+                        break
+                    if pm[0] >= pm[1] and pm[0] > 0:
+                        pm[0] -= 1
+                    elif pm[1] > 0:
+                        pm[1] -= 1
+                    self.total_trits -= 1
 
-        # =============================================================
-        # (2) FIRST-ORDER: observe → interfere
-        # =============================================================
+        # (2) FIRST-ORDER RULES — add +1 trits to observed mode+action
         for mode in observed_modes:
             self._interfere(mode, action, +1, self.SEED_COUNT, num_actions)
 
@@ -235,49 +255,33 @@ class WaveSieve:
             prev_first = set(self._prev_modes)
         all_first = active_first | prev_first
 
-        # Hilbert space budget: composites bounded by n_first².
-        # This is the dimension of the 2-body interaction space.
-        n_first = sum(1 for k in self.psi if not self._is_composite(k))
-        n_composites = len(self.psi) - n_first
-        allow_new = n_composites < max(100, n_first * n_first)
-
-        # =============================================================
         # (3) TEMPORAL CURRYING
-        # =============================================================
         if self._prev_data is not None:
             for mode_now, (pos, val) in zip(observed_modes, config.items()):
                 if pos in self._prev_data:
                     prev_val = self._prev_data[pos]
                     mode_prev = self._mode_key(pos, prev_val)
                     ck = self._curry_key(mode_prev, mode_now)
-                    if ck in self.psi:
-                        self._interfere(ck, action, +1, self.SEED_COUNT,
-                                        num_actions)
-                    elif allow_new:
+                    if ck not in self.psi:
                         self._spawn_mode(ck, num_actions)
-                        self._interfere(ck, action, +1, self.SEED_COUNT,
-                                        num_actions)
+                    # Curry sign = product of constituent net signs
+                    # But for injection, always inject +1 (constructive)
+                    self._interfere(ck, action, +1, self.SEED_COUNT,
+                                    num_actions)
 
-        # =============================================================
-        # (4) SPATIAL CURRYING — sqrt(N) samples (diffusion rate)
-        # =============================================================
+        # (4) SPATIAL CURRYING
         if len(observed_modes) >= 2:
             n_samples = max(1, int(np.sqrt(len(observed_modes))))
             for _ in range(n_samples):
-                i, j = self.rng.choice(len(observed_modes), size=2,
-                                       replace=False)
+                i, j = np.random.choice(len(observed_modes), size=2,
+                                        replace=False)
                 ck = self._curry_key(observed_modes[i], observed_modes[j])
-                if ck in self.psi:
-                    self._interfere(ck, action, +1, self.SEED_COUNT,
-                                    num_actions)
-                elif allow_new:
+                if ck not in self.psi:
                     self._spawn_mode(ck, num_actions)
-                    self._interfere(ck, action, +1, self.SEED_COUNT,
-                                    num_actions)
+                self._interfere(ck, action, +1, self.SEED_COUNT,
+                                num_actions)
 
-        # =============================================================
-        # (5) HIGHER-ORDER CURRYING — propagate activation bottom-up
-        # =============================================================
+        # (5) HIGHER-ORDER CURRYING (gated by signal strength)
         active_modes = set(all_first)
         for _ in range(3):
             next_active = set()
@@ -291,76 +295,54 @@ class WaveSieve:
                 break
             active_modes |= next_active
 
-        if allow_new:
-            active_composites = []
-            for k in active_modes:
-                if not self._is_composite(k) or k not in self.psi:
-                    continue
-                mt = self._mode_energy(k)
-                if mt > num_actions * 2:
-                    active_composites.append(k)
+        active_composites = []
+        for k in active_modes:
+            if not self._is_composite(k) or k not in self.psi:
+                continue
+            mt = self._mode_total_trits(k)
+            if mt > num_actions * 2:  # above vacuum
+                active_composites.append(k)
 
-            if active_composites and observed_modes:
-                comp = active_composites[
-                    self.rng.randint(len(active_composites))]
-                if self._order(comp) < 4:
-                    first = observed_modes[
-                        self.rng.randint(len(observed_modes))]
-                    ck = self._curry_key(comp, first)
-                    if ck in self.psi:
-                        self._interfere(ck, action, +1, self.SEED_COUNT,
-                                        num_actions)
-                    elif self._mode_energy(comp) > num_actions * 4:
+        if active_composites and observed_modes:
+            comp = active_composites[
+                np.random.randint(len(active_composites))]
+            if self._order(comp) < 4:
+                first = observed_modes[
+                    np.random.randint(len(observed_modes))]
+                ck = self._curry_key(comp, first)
+                if ck in self.psi or self._mode_total_trits(comp) > num_actions * 4:
+                    if ck not in self.psi:
                         self._spawn_mode(ck, num_actions)
-                        self._interfere(ck, action, +1, self.SEED_COUNT,
-                                        num_actions)
+                    self._interfere(ck, action, +1, self.SEED_COUNT,
+                                    num_actions)
 
-        # =============================================================
-        # (6) SELF-COMPRESSION (Hawking radiation)
-        #
-        # Cold AND undifferentiated composites evaporate.
-        # Combined with the Hilbert space budget above, this keeps
-        # the mode space both bounded and clean.
-        # =============================================================
-        # Self-compression: evaporate undifferentiated composites
+        # (6) PRUNING
         if self.frame % max(50, len(self.psi) // 4) == 0:
-            self._self_compress(num_actions)
+            self._prune(num_actions)
 
         self._trace.append((list(active_first), action))
         self._prev_modes = list(observed_modes)
         self._prev_data = dict(config)
         self._update_quality()
 
-    def _self_compress(self, num_actions: int = 4):
-        """Hawking radiation: undifferentiated composite modes evaporate.
-
-        A composite mode evaporates if:
-        - Its total energy is below a threshold that scales with
-          action count and compositional depth (order), OR
-        - Its spectral gap (max_net - min_net) is ≤ SEED_COUNT
-          (all actions look the same — no information content)
-
-        The threshold num_actions * (1 + order) ensures fresh modes
-        have time to accumulate signal proportional to their complexity.
-        """
-        to_evaporate = []
-        for key in self.psi:
+    def _prune(self, num_actions: int = 4):
+        """Remove modes with no signal (all actions ≈ same count)."""
+        to_remove = []
+        for key, actions in self.psi.items():
             if not self._is_composite(key):
                 continue
-            actions = self.psi[key]
-            if not actions:
-                to_evaporate.append(key)
-                continue
-            nets = [pm[0] - pm[1] for pm in actions.values()]
-            max_net = max(nets)
-            min_net = min(nets)
-            total = self._mode_energy(key)
+            nets = [self._net(key, a) for a in actions]
+            max_net = max(nets) if nets else 0
+            min_net = min(nets) if nets else 0
+            total = self._mode_total_trits(key)
             order = self._order(key)
+            # Higher order = more aggressive pruning
             threshold = num_actions * (1 + order)
-            if total <= threshold or (max_net - min_net) <= self.SEED_COUNT:
-                to_evaporate.append(key)
-        for key in to_evaporate:
-            trits = self._mode_energy(key)
+            # Prune if undifferentiated or below threshold
+            if total <= threshold or (max_net - min_net) <= 1:
+                to_remove.append(key)
+        for key in to_remove:
+            trits = self._mode_total_trits(key)
             self.total_trits -= trits
             del self.psi[key]
 
@@ -370,7 +352,7 @@ class WaveSieve:
 
     def choose_action(self, data, num_actions: int,
                       neighbor_fn=None, query_pos=None) -> int:
-        """Boltzmann selection on net magnetization."""
+        """Born rule on net magnetization."""
         config = self._normalize_input(data)
         total_net = np.zeros(num_actions, dtype=np.float64)
         N = max(1, len(config))
@@ -387,17 +369,12 @@ class WaveSieve:
                 self._spawn_mode(mode, num_actions)
             observed_modes.add(mode)
 
-            # Locality: 1/r² on discrete graph
-            # query_pos (r=0): weight N
-            # neighbor (r=1): weight 1
-            # far (r=2+): weight 1/N
-            if query_pos is not None:
-                if pos == query_pos:
-                    weight = float(N)
-                elif pos in neighbor_set:
-                    weight = 1.0
-                else:
-                    weight = 1.0 / N
+            if query_pos is not None and pos == query_pos:
+                weight = float(N)
+            elif pos in neighbor_set:
+                weight = 1.0
+            elif query_pos is not None:
+                weight = 1.0 / N
             else:
                 weight = 1.0
 
@@ -423,6 +400,7 @@ class WaveSieve:
                 break
             active_modes |= next_active
 
+        # Composite contributions (weighted by 1/order)
         for key in active_modes:
             if not self._is_composite(key) or key not in self.psi:
                 continue
@@ -431,25 +409,11 @@ class WaveSieve:
             for a in range(num_actions):
                 total_net[a] += weight * self._net(key, a)
 
-        # =============================================================
-        # BOLTZMANN SELECTION
-        #
-        # T = max(SEED_COUNT, net_range / 10)
-        #
-        # ENGINEERING NOTE: The divisor 10 is empirical, not derived
-        # from SEED_COUNT. It works across all test domains. The
-        # physics derivation is an open question — it may relate to
-        # the entropy of the action space or the signal-to-noise
-        # crossover point. For now, it's the only non-derived constant
-        # in the system.
-        #
-        # range/10 means: the best action needs to be 10 units of
-        # temperature better than worst to get ~exp(10) = 22000x
-        # probability. This provides strong selection while allowing
-        # exploration when signals are weak.
-        # =============================================================
-        net_range = np.max(total_net) - np.min(total_net)
-        T = max(float(self.SEED_COUNT), net_range / 10.0)
+        # Boltzmann/softmax: P(a) ∝ exp(net(a) / T)
+        # Net is a bias: positive = favored, negative = disfavored.
+        # Temperature T scales with system size for stability.
+        # Shift by max for numerical stability.
+        T = max(1.0, np.max(np.abs(total_net)) / 10.0)
         shifted = total_net / T
         shifted -= np.max(shifted)  # numerical stability
         probs = np.exp(shifted)
@@ -460,25 +424,22 @@ class WaveSieve:
         else:
             probs = np.ones(num_actions) / num_actions
 
-        return int(self.rng.choice(num_actions, p=probs))
+        return np.random.choice(num_actions, p=probs)
 
     # =================================================================
     # SIGNAL
     # =================================================================
 
     def _signal(self, sign: int):
-        """Add trits with given sign to trace modes."""
+        """Signal = add trits with given sign to trace modes.
+        sign = +1: success → add matter (+1 trits)
+        sign = -1: death → add antimatter (-1 trits)
+        Credit = 1/(1+r)² as integer trit count."""
         if not self._trace:
             return
 
         for i, (trace_modes, action) in enumerate(reversed(self._trace)):
-            # Credit = SEED_COUNT * 4 / (1+i)² — inverse square in time
-            # The factor of 4 provides signal above the noise floor
-            # established by decoherence + observe reinforcement.
-            # Physics: 4 = num_actions for a balanced system (each action
-            # gets 1 trit from observe, so signal needs 4 to differentiate).
-            credit = max(self.SEED_COUNT,
-                         self.SEED_COUNT * 4 // (1 + i) ** 2)
+            credit = max(1, self.SEED_COUNT * 4 // (1 + i) ** 2)
             trace_set = set(trace_modes)
 
             for mode in trace_modes:
@@ -492,19 +453,21 @@ class WaveSieve:
                 leaves = self._leaf_modes(key)
                 if leaves.issubset(trace_set):
                     order = self._order(key)
-                    ho_credit = max(self.SEED_COUNT, credit // order)
+                    ho_credit = max(1, credit // order)
                     self._interfere(key, action, sign, ho_credit)
 
         self._trace = []
 
     def signal_death(self):
+        """Add -1 trits. Antimatter."""
         self._signal(-1)
 
     def signal_success(self):
+        """Add +1 trits. Matter."""
         self._signal(+1)
 
     # =================================================================
-    # RESONANCE QUALITY (diagnostic — not used in physics)
+    # RESONANCE QUALITY
     # =================================================================
 
     def _signal_strength(self) -> float:
@@ -512,8 +475,8 @@ class WaveSieve:
         for actions in self.psi.values():
             for pm in actions.values():
                 net = abs(pm[0] - pm[1])
-                if net > self.SEED_COUNT:
-                    total += net - self.SEED_COUNT
+                if net > 1:
+                    total += net - 1
         return total
 
     def _mode_contrast(self) -> float:
@@ -525,7 +488,7 @@ class WaveSieve:
                 continue
             nets = [abs(pm[0] - pm[1]) for pm in actions.values()]
             max_n = max(nets)
-            if max_n <= self.SEED_COUNT:
+            if max_n <= 1:
                 continue
             min_n = min(nets)
             if max_n + min_n > 0:
@@ -542,7 +505,7 @@ class WaveSieve:
             total += 1
             nets = [abs(pm[0] - pm[1]) for pm in actions.values()]
             max_n, min_n = max(nets), min(nets)
-            if max_n > self.SEED_COUNT and (max_n - min_n) > self.SEED_COUNT:
+            if max_n > 2 and (max_n - min_n) > 1:
                 differentiated += 1
         return differentiated / total if total else 0.0
 
@@ -602,17 +565,19 @@ class WaveSieve:
         self.total_trits = int(val)
 
     # =================================================================
-    # ANNEALING (external perturbation)
+    # ANNEALING
     # =================================================================
 
     def anneal(self, temperature: float = 1.0):
+        """Add random trits everywhere = heating."""
         for key in self.psi:
             for a in self.psi[key]:
-                sign = self.rng.choice([-1, 1])
-                count = max(self.SEED_COUNT, int(temperature))
+                sign = np.random.choice([-1, 1])
+                count = max(1, int(temperature))
                 self._interfere(key, a, sign, count)
 
     def cool(self, rate: float = None):
+        """Remove random trits = cooling."""
         if rate is None:
             rate = 1.0 / max(1, len(self.psi))
         n_remove = max(1, int(self.total_trits * rate))
@@ -620,18 +585,18 @@ class WaveSieve:
         if not all_keys:
             return
         for _ in range(n_remove):
-            k = all_keys[self.rng.randint(len(all_keys))]
+            k = all_keys[np.random.randint(len(all_keys))]
             actions = list(self.psi[k].keys())
             if not actions:
                 continue
-            a = actions[self.rng.randint(len(actions))]
+            a = actions[np.random.randint(len(actions))]
             pm = self.psi[k][a]
-            if pm[0] + pm[1] > self.SEED_COUNT:
+            if pm[0] + pm[1] > 1:
                 if pm[0] >= pm[1]:
-                    pm[0] -= self.SEED_COUNT
+                    pm[0] -= 1
                 else:
-                    pm[1] -= self.SEED_COUNT
-                self.total_trits -= self.SEED_COUNT
+                    pm[1] -= 1
+                self.total_trits -= 1
 
     # =================================================================
     # EPISODE / STATS
