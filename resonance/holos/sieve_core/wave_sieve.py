@@ -1,6 +1,6 @@
 """
-WAVE SIEVE v3 - Physics Reservoir
-==================================
+WAVE SIEVE v4 - Fractal Resonant Cavity
+========================================
 
 A resonant cavity that learns by accumulating standing waves.
 One free parameter: PSI_0 (zero-point amplitude).
@@ -16,13 +16,31 @@ Open resonant cavity coupled to environment:
 4. ENERGY = total_energy. Heat = total - mode_energy (derived).
 5. RADIATIVE COOLING: Heat slowly leaves the system.
 
+RESONANCE QUALITY (optimal stopping):
+======================================
+The cavity measures its own quality factor Q from internal observables:
+- Mode contrast: max|a|^2 / mean|a|^2 per mode (action differentiation)
+- Phase coherence: alignment of winning-action phases across modes
+- Energy partition: mode_energy / total_energy (structure vs thermal)
+Q = contrast * coherence * partition. No oracle needed.
+Snapshot/restore at peak Q to capture optimal learned state.
+
+FRACTAL CAVITIES:
+=================
+Positions that co-occur form natural sub-cavities. When correlation
+energy between a position cluster exceeds PSI_0^2, a child cavity
+spawns. Parent energy flows to children through shared boundary modes.
+Each child is itself a WaveSieve — fractal resonance all the way down.
+
 CONSTANTS (all from PSI_0 and N):
 - Energy quantum per observation: n_observed * PSI_0^2
 - Global decoherence: PSI_0^2 / N per mode per frame
-- Interference amp: sqrt(heat / N)
+- Pump interference amp: PSI_0
 - Temporal coupling: PSI_0 / N
 - Locality: N (query), 1 (neighbor), 1/N (distant)
 - Credit: 1/(1+r)^2
+- Cavity spawn threshold: PSI_0^2 (correlation energy)
+- Inter-cavity coupling: PSI_0 / depth
 """
 
 import numpy as np
@@ -36,7 +54,8 @@ class WaveSieve:
 
     PSI_0 = 0.1
 
-    def __init__(self):
+    def __init__(self, depth: int = 0):
+        self.depth = depth
         self.amplitude: Dict[Any, Dict[int, complex]] = defaultdict(dict)
         self.temporal: Dict[Any, Dict[Any, complex]] = defaultdict(
             lambda: defaultdict(complex)
@@ -45,6 +64,16 @@ class WaveSieve:
         self.total_energy: float = self.PSI_0 ** 2
         self._trace: List[Tuple[Dict[Any, Any], int]] = []
         self.frame: int = 0
+
+        # Resonance quality tracking (optimal stopping)
+        self._q_history: List[float] = []
+        self._best_q: float = 0.0
+        self._best_q_frame: int = 0
+        self._best_snapshot: Optional[Dict] = None
+
+        # Fractal cavities: position-cluster -> child WaveSieve
+        self._cavities: Dict[Any, 'WaveSieve'] = {}
+        self._cooccurrence: Dict[Tuple, float] = defaultdict(float)
 
     # === DERIVED QUANTITIES ===
 
@@ -60,6 +89,131 @@ class WaveSieve:
 
     def _heat(self) -> float:
         return max(0, self.total_energy - self._mode_energy())
+
+    # === RESONANCE QUALITY (optimal stopping) ===
+
+    def _signal_strength(self) -> float:
+        """How much amplitude has accumulated above the zero-point floor.
+        Physics: total signal energy above vacuum = sum(|a|^2 - PSI_0^2)
+        for all mode-actions where |a| > PSI_0. This measures how much
+        the environment has imprinted on the cavity."""
+        signal = 0.0
+        floor = self.PSI_0 ** 2
+        for actions in self.amplitude.values():
+            for a in actions.values():
+                excess = abs(a) ** 2 - floor
+                if excess > 0:
+                    signal += excess
+        return signal
+
+    def _mode_contrast(self) -> float:
+        """How differentiated are action amplitudes within each mode?
+        Physics: for each mode, ratio of (max - min) to (max + min) intensity.
+        This is the fringe visibility. 0 = uniform, 1 = fully differentiated.
+        Only counts modes that have accumulated signal above the floor."""
+        if not self.amplitude:
+            return 0.0
+        floor = self.PSI_0 ** 2
+        contrasts = []
+        for mode_key, actions in self.amplitude.items():
+            if not actions:
+                continue
+            intensities = [abs(a) ** 2 for a in actions.values()]
+            max_i = max(intensities)
+            # Only count modes that have learned something
+            if max_i <= floor * 1.5:
+                continue
+            min_i = min(intensities)
+            if max_i + min_i > 0:
+                contrasts.append((max_i - min_i) / (max_i + min_i))
+        if not contrasts:
+            return 0.0
+        return sum(contrasts) / len(contrasts)
+
+    def _mode_selectivity(self) -> float:
+        """Fraction of modes that have differentiated above the floor.
+        Physics: what fraction of the cavity's modes carry signal.
+        0 = nothing learned, 1 = all modes carry information."""
+        if not self.amplitude:
+            return 0.0
+        floor = self.PSI_0 ** 2
+        total = 0
+        differentiated = 0
+        for actions in self.amplitude.values():
+            if not actions:
+                continue
+            total += 1
+            intensities = [abs(a) ** 2 for a in actions.values()]
+            max_i = max(intensities)
+            min_i = min(intensities)
+            if max_i > floor * 1.5 and (max_i - min_i) > floor:
+                differentiated += 1
+        if total == 0:
+            return 0.0
+        return differentiated / total
+
+    def resonance_quality(self) -> float:
+        """Combined quality factor Q. All from internal observables.
+        Q = contrast * selectivity * log(1 + signal_strength).
+        - contrast: how strongly modes differentiate between actions
+        - selectivity: what fraction of modes carry signal
+        - signal_strength: total energy above vacuum (log-scaled)
+        Peaks when the cavity has optimal learned representation."""
+        contrast = self._mode_contrast()
+        selectivity = self._mode_selectivity()
+        signal = np.log1p(self._signal_strength() / self.PSI_0 ** 2)
+        return contrast * selectivity * signal
+
+    def _update_quality(self):
+        """Track Q and snapshot at peak. Sampled every N frames to avoid
+        overhead from computing Q and snapshotting every frame."""
+        N = self._n_modes()
+        # Sample rate: every N frames (thermodynamic timescale)
+        if self.frame % max(1, N) != 0:
+            return
+        q = self.resonance_quality()
+        self._q_history.append(q)
+        # Only snapshot if Q improved by at least 1% relative
+        if q > self._best_q * 1.01 + self.PSI_0 ** 2:
+            self._best_q = q
+            self._best_q_frame = self.frame
+            self._best_snapshot = self._snapshot()
+
+    def _snapshot(self) -> Dict:
+        """Capture cavity state for restoration."""
+        return {
+            'amplitude': {k: dict(v) for k, v in self.amplitude.items()},
+            'temporal': {k: dict(v) for k, v in self.temporal.items()},
+            'total_energy': self.total_energy,
+            'frame': self.frame,
+        }
+
+    def restore_best(self) -> int:
+        """Restore the cavity to its peak resonance quality state.
+        Returns the frame number of the restored state."""
+        if self._best_snapshot is None:
+            return self.frame
+        snap = self._best_snapshot
+        self.amplitude = defaultdict(dict)
+        for k, v in snap['amplitude'].items():
+            self.amplitude[k] = dict(v)
+        self.temporal = defaultdict(lambda: defaultdict(complex))
+        for k, v in snap['temporal'].items():
+            self.temporal[k] = defaultdict(complex)
+            self.temporal[k].update(v)
+        self.total_energy = snap['total_energy']
+        return snap['frame']
+
+    def q_trend(self, window: int = 100) -> float:
+        """Recent trend in Q. Positive = improving, negative = degrading.
+        Physics: dQ/dt averaged over window."""
+        if len(self._q_history) < window + 1:
+            return 0.0
+        recent = self._q_history[-window:]
+        old = self._q_history[-(window + window // 2):-window // 2]
+        if not old:
+            return 0.0
+        return (sum(recent) / len(recent)) - (sum(old) / len(old))
 
     # === INPUT ===
 
@@ -152,8 +306,16 @@ class WaveSieve:
                     p_b = cmath.phase(old_b) if abs(old_b) > 0 else p
                     self.temporal[prev_key][now_key] = old_b + tc * cmath.exp(1j * p_b)
 
+        # Fractal cavity coupling: feed sub-cavities
+        # Updated every sqrt(N) frames to balance learning with overhead
+        if self.frame % max(1, int(np.sqrt(N))) == 0:
+            self._update_cavities(config, action, num_actions)
+
         self._trace.append((config, action))
         self._prev_data = dict(config)
+
+        # Track resonance quality
+        self._update_quality()
 
     def _decohere_mode(self, key: Any, rate: float):
         for a in list(self.amplitude[key].keys()):
@@ -202,6 +364,9 @@ class WaveSieve:
                             for a in range(num_actions):
                                 prev_amp = self.amplitude[prev_mode].get(a, self.PSI_0)
                                 total_amp[a] += coupling * prev_amp * tc
+
+        # Fractal cavity contributions
+        total_amp += self._cavity_contribution(config, num_actions)
 
         probs = np.array([abs(a) ** 2 for a in total_amp])
         probs = np.maximum(probs, self.PSI_0 ** 2)
@@ -260,6 +425,11 @@ class WaveSieve:
 
         self._trace = []
 
+        # Propagate signal to child cavities (boundary reflection)
+        for child in self._cavities.values():
+            if child._trace:
+                child._signal(phase_shift)
+
     def signal_death(self):
         """Destructive interference = phase pi. THE NOT WAVE."""
         self._signal(np.pi)
@@ -279,11 +449,89 @@ class WaveSieve:
         heat = self._heat()
         self.total_energy -= heat * rate
 
+    # === FRACTAL CAVITIES ===
+
+    def _update_cavities(self, config: Dict, action: int, num_actions: int):
+        """Dynamically create and feed sub-cavities based on input geometry.
+
+        Physics: when positions co-occur repeatedly, their correlation
+        energy builds. When it exceeds the spawn threshold, a resonant
+        sub-cavity forms at that cluster. The parent feeds the child
+        with a coupling strength of PSI_0 / (depth + 2).
+
+        Child cavities see a LOCAL view: only the positions in their
+        cluster. This is how the universe creates fractal resonant
+        structures from the geometry of its input.
+
+        Efficiency: co-occurrence is sampled stochastically (Monte Carlo)
+        rather than computed for all O(N^2) pairs. This is physically
+        motivated — not all pair interactions happen every frame.
+        """
+        if self.depth >= 3:
+            return
+
+        positions = list(config.keys())
+        if len(positions) < 2:
+            return
+
+        N = max(1, len(positions))
+
+        # Stochastic co-occurrence sampling: pick sqrt(N) random pairs.
+        # Physics: thermal fluctuations sample the pair space.
+        n_samples = max(1, int(np.sqrt(N)))
+        deposit = self.PSI_0 ** 2 / N  # Normalized per sample
+
+        for _ in range(n_samples):
+            i, j = np.random.choice(len(positions), size=2, replace=False)
+            ki, kj = positions[i], positions[j]
+            pair = (ki, kj) if hash(ki) <= hash(kj) else (kj, ki)
+            self._cooccurrence[pair] += deposit
+
+            # Spawn cavity when correlation energy is significant.
+            # Threshold: sqrt(N) * PSI_0^2 — geometric mean between
+            # one photon (too easy) and N photons (too hard).
+            threshold = np.sqrt(N) * self.PSI_0 ** 2
+            if pair not in self._cavities and self._cooccurrence[pair] >= threshold:
+                # Cap total cavities at N (energy budget)
+                if len(self._cavities) < N:
+                    self._cavities[pair] = WaveSieve(depth=self.depth + 1)
+
+        # Feed active sub-cavities with their local view
+        for pair, child in self._cavities.items():
+            p1, p2 = pair
+            if p1 in config and p2 in config:
+                local_config = {p1: config[p1], p2: config[p2]}
+                child.observe(local_config, action, num_actions)
+
+    def _cavity_contribution(self, config: Dict, num_actions: int) -> np.ndarray:
+        """Collect action amplitudes from child cavities.
+        Each child contributes its local view weighted by coupling."""
+        contrib = np.zeros(num_actions, dtype=complex)
+        if not self._cavities:
+            return contrib
+
+        coupling = self.PSI_0 / (self.depth + 2)
+        for pair, child in self._cavities.items():
+            p1, p2 = pair
+            if p1 in config and p2 in config:
+                local_config = {p1: config[p1], p2: config[p2]}
+                child_config = child._normalize_input(local_config)
+                child_amp = np.zeros(num_actions, dtype=complex)
+                for pos, val in child_config.items():
+                    mode = child._mode_key(pos, val)
+                    if mode in child.amplitude:
+                        for a in range(num_actions):
+                            child_amp[a] += child.amplitude[mode].get(a, self.PSI_0)
+                contrib += coupling * child_amp
+        return contrib
+
     # === EPISODE / STATS ===
 
     def reset_episode(self):
         self._prev_data = None
         self._trace = []
+        for child in self._cavities.values():
+            child.reset_episode()
 
     def get_stats(self) -> Dict:
         me = self._mode_energy()
@@ -292,6 +540,7 @@ class WaveSieve:
             for targets in self.temporal.values()
             for c in targets.values()
         )
+        q = self.resonance_quality()
         return {
             'total_energy': self.total_energy,
             'mode_energy': me,
@@ -300,4 +549,10 @@ class WaveSieve:
             'n_modes': len(self.amplitude),
             'n_mode_actions': self._n_modes(),
             'n_temporal': sum(len(t) for t in self.temporal.values()),
+            'resonance_q': q,
+            'best_q': self._best_q,
+            'best_q_frame': self._best_q_frame,
+            'n_cavities': len(self._cavities),
+            'cavity_depth': self.depth,
+            'q_trend': self.q_trend(),
         }

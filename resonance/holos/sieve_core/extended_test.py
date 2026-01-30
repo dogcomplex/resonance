@@ -1,4 +1,4 @@
-"""Extended learning curve test - are we still improving or plateaued?"""
+"""Extended learning curve test - v4 with Q tracking and fractal cavities."""
 import numpy as np
 from wave_sieve import WaveSieve
 
@@ -43,8 +43,13 @@ for step in range(20000):
         recent = 100 * sum(window) / len(window)
         stats = sieve.get_stats()
         print(f"  Step {step+1:6d}: Recent500={recent:.1f}%  "
-              f"[modes={stats['n_modes']} heat={stats['heat_bath']:.4f} "
-              f"total_E={stats['total_energy']:.3f}]")
+              f"[Q={stats['resonance_q']:.3f} bestQ={stats['best_q']:.3f}@{stats['best_q_frame']} "
+              f"cavities={stats['n_cavities']} modes={stats['n_modes']} "
+              f"heat={stats['heat_bath']:.4f}]")
+
+# Test restore_best on sequence
+print(f"\n  Sequence best Q was at frame {sieve._best_q_frame}, current frame {sieve.frame}")
+print(f"  Q now={sieve.resonance_quality():.4f}, best={sieve._best_q:.4f}")
 
 
 # ============ EXTENDED SUDOKU TEST ============
@@ -179,8 +184,9 @@ for puzzle in range(20000):
         stats = sieve2.get_stats()
         print(f"  Puzzle {puzzle+1:6d}: Recent500 Solve={r_solve:.1f}% "
               f"Moves={r_moves:.1f}%  |  Cumul Solve={cumul_solve:.1f}% "
-              f"Moves={cumul_moves:.1f}%  [modes={stats['n_modes']} "
-              f"heat={stats['heat_bath']:.4f} total_E={stats['total_energy']:.3f}]")
+              f"Moves={cumul_moves:.1f}%  [Q={stats['resonance_q']:.3f} "
+              f"bestQ={stats['best_q']:.3f}@{stats['best_q_frame']} "
+              f"cavities={stats['n_cavities']} modes={stats['n_modes']}]")
 
 
 # ============ EXTENDED TICTACTOE TEST ============
@@ -279,10 +285,70 @@ for game in range(10000):
         stats = sieve3.get_stats()
         print(f"  Game {game+1:6d}: Recent500 W={rw:.1f}% L={rl:.1f}% "
               f"D={rd:.1f}%  |  Cumul W={100*wins/total:.1f}% "
-              f"L={100*losses/total:.1f}%  [modes={stats['n_modes']} "
-              f"heat={stats['heat_bath']:.4f}]")
+              f"L={100*losses/total:.1f}%  [Q={stats['resonance_q']:.3f} "
+              f"bestQ={stats['best_q']:.3f}@{stats['best_q_frame']} "
+              f"cavities={stats['n_cavities']}]")
+
+
+# ============ OPTIMAL STOPPING TEST ============
+print("\n" + "=" * 60)
+print("OPTIMAL STOPPING: Train sequence 20k, restore best, test")
+print("=" * 60)
+
+sieve4 = WaveSieve()
+env4 = SequenceMemory()
+current = env4.reset()
+window = []
+best_perf = 0
+best_perf_frame = 0
+
+for step in range(20000):
+    if step < 200:
+        action = np.random.randint(0, 3)
+    else:
+        action = sieve4.choose_action(current, num_actions=3)
+    sieve4.observe(current, action, num_actions=3)
+    is_correct, current = env4.step(action)
+    if is_correct:
+        sieve4.signal_success()
+    else:
+        sieve4.signal_death()
+    window.append(1 if is_correct else 0)
+    if len(window) > 500: window.pop(0)
+    if len(window) == 500:
+        perf = sum(window) / len(window)
+        if perf > best_perf:
+            best_perf = perf
+            best_perf_frame = step
+
+final_perf = 100 * sum(window) / len(window)
+print(f"  Final performance at frame {sieve4.frame}: {final_perf:.1f}%")
+print(f"  Best Q: {sieve4._best_q:.4f} at frame {sieve4._best_q_frame}")
+print(f"  Best actual perf: {100*best_perf:.1f}% at frame {best_perf_frame}")
+print(f"  Current Q: {sieve4.resonance_quality():.4f}")
+
+# Restore and test
+restored_frame = sieve4.restore_best()
+print(f"\n  Restored to frame {restored_frame}")
+
+# Test restored state
+window2 = []
+current = env4.reset()
+for step in range(2000):
+    action = sieve4.choose_action(current, num_actions=3)
+    # Don't observe/signal — frozen state evaluation
+    is_correct, current = env4.step(action)
+    window2.append(1 if is_correct else 0)
+
+restored_perf = 100 * sum(window2) / len(window2)
+print(f"  Restored state performance (2000 steps, frozen): {restored_perf:.1f}%")
+print(f"  Q predicted optimal? best_q_frame={sieve4._best_q_frame} vs best_perf_frame={best_perf_frame}")
+
 
 print("\n" + "=" * 60)
 print("EXTENDED TEST SUMMARY")
 print("=" * 60)
-print("Look at the trends: still improving, or plateaued?")
+print("Key questions:")
+print("  1. Does Q correlate with actual performance?")
+print("  2. Does restore_best recover a good state?")
+print("  3. Do fractal cavities form and contribute?")
